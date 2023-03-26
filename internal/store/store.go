@@ -9,8 +9,9 @@ import (
 )
 
 type Store struct {
-	config *Config
-	db     *sql.DB
+	config    *Config
+	db        *sql.DB
+	personRep *PersonRep
 }
 
 func New(config *Config) *Store {
@@ -35,4 +36,15 @@ func (s *Store) Open() error {
 
 func (s *Store) Close() {
 	s.db.Close()
+}
+
+func (s *Store) Person() *PersonRep {
+	if s.personRep != nil {
+		return s.personRep
+	}
+
+	s.personRep = &PersonRep{
+		store: s,
+	}
+	return s.personRep
 }
