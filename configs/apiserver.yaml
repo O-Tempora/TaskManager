@@ -1,6 +1,6 @@
 port: ":5192"
 log_level: "Debug"
-store:
+dbconfig:
   user: "postgres"
   password: "postgres"
   dbname: dip
