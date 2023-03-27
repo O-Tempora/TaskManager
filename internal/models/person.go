@@ -26,6 +26,14 @@ func (p *Person) Validate() error {
 	if err != nil {
 		return errors.New("Incorrect email format")
 	}
+	err = p.HashPassword()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *Person) HashPassword() error {
 	b, err := bcrypt.GenerateFromPassword([]byte(p.Password), bcrypt.MinCost)
 	if err != nil {
 		return err
