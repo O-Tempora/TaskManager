@@ -1,10 +1,10 @@
 package models
 
 import (
-	"errors"
-	"net/mail"
 	"regexp"
 
+	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -18,15 +18,17 @@ type Person struct {
 }
 
 func (p *Person) Validate() error {
-	match, _ := regexp.MatchString(`^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$`, p.Phone)
-	if !match {
-		return errors.New("Incorrect phone number format")
+	if err := validation.ValidateStruct(p,
+		validation.Field(&p.Email, validation.Required, is.Email),
+		validation.Field(&p.Phone, validation.Required, validation.Match(
+			regexp.MustCompile(`^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$`))),
+		validation.Field(&p.Password, validation.Required, validation.Length(5, 20)),
+		validation.Field(&p.Name, validation.Required),
+	); err != nil {
+		return err
 	}
-	_, err := mail.ParseAddress(p.Email)
-	if err != nil {
-		return errors.New("Incorrect email format")
-	}
-	err = p.HashPassword()
+
+	err := p.HashPassword()
 	if err != nil {
 		return err
 	}
