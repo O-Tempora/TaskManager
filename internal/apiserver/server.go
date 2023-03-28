@@ -1,7 +1,7 @@
 package apiserver
 
 import (
-	"dip/internal/models"
+	"dip/internal/handlers"
 	"dip/internal/store"
 	"encoding/json"
 	"fmt"
@@ -13,7 +13,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type server struct {
@@ -34,7 +33,6 @@ func newServer(store store.Store) *server {
 	return s
 }
 
-// #region Utils
 func (s *server) initLogger(wr io.Writer) {
 	output := zerolog.ConsoleWriter{
 		Out:        wr,
@@ -51,80 +49,44 @@ func (s *server) initLogger(wr io.Writer) {
 	s.logger = zerolog.New(output).With().Timestamp().Logger().Level(zerolog.DebugLevel)
 }
 
+// To implement interface http.Handler
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
 func (s *server) error(w http.ResponseWriter, r *http.Request, code int, err error) {
-	s.respond(w, r, code, map[string]string{"error": err.Error()})
+	s.success(w, r, code, map[string]string{"error": err.Error()})
 }
-func (s *server) respond(w http.ResponseWriter, r *http.Request, code int, data interface{}) {
+func (s *server) success(w http.ResponseWriter, r *http.Request, code int, data interface{}) {
 	w.WriteHeader(code)
 	if data != nil {
 		json.NewEncoder(w).Encode(data)
 	}
 }
 
-// #endregion Utils
-
 func (s *server) initRouter() {
 	s.router.Post("/signup", s.handleSignUp())
 	s.router.Post("/login", s.handleLogIn())
 }
+
 func (s *server) handleSignUp() http.HandlerFunc {
-	type request struct {
-		Name     string `json:"name"`
-		Email    string `json:"email"`
-		Phone    string `json:"phone"`
-		Password string `json:"password"`
-	}
-
 	return func(w http.ResponseWriter, r *http.Request) {
-		req := &request{}
-		if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-			s.error(w, r, http.StatusBadRequest, err)
-			return
+		w.Header().Set("Content-Type", "application/json")
+		err, code := handlers.SignUp(s.store, w, r)
+		if err != nil {
+			s.error(w, r, code, err)
+		} else {
+			s.success(w, r, code, nil)
 		}
-		p := &models.Person{
-			Email:    req.Email,
-			Password: req.Password,
-			Name:     req.Name,
-			Phone:    req.Phone,
-			Settings: "",
-		}
-
-		if err := s.store.Person().Create(p); err != nil {
-			s.error(w, r, http.StatusUnprocessableEntity, err)
-			return
-		}
-
-		s.respond(w, r, http.StatusCreated, p)
 	}
 }
-
 func (s *server) handleLogIn() http.HandlerFunc {
-	type request struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-
 	return func(w http.ResponseWriter, r *http.Request) {
-		req := &request{}
-		if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-			s.error(w, r, http.StatusBadRequest, err)
-			return
-		}
-
-		p, err := s.store.Person().GetByEmail(req.Email)
+		w.Header().Set("Content-Type", "application/json")
+		err, code := handlers.LogIn(s.store, w, r)
 		if err != nil {
-			s.error(w, r, http.StatusBadRequest, err)
-			return
+			s.error(w, r, code, err)
+		} else {
+			s.success(w, r, code, nil)
 		}
-
-		if err = bcrypt.CompareHashAndPassword([]byte(p.Password), []byte(req.Password)); err != nil {
-			s.error(w, r, http.StatusBadRequest, err)
-			return
-		}
-
-		s.respond(w, r, http.StatusOK, nil)
 	}
 }
