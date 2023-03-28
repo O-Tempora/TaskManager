@@ -66,6 +66,10 @@ func (s *server) success(w http.ResponseWriter, r *http.Request, code int, data 
 func (s *server) initRouter() {
 	s.router.Post("/signup", s.handleSignUp())
 	s.router.Post("/login", s.handleLogIn())
+
+	s.router.Get("/statuses", s.handleGetStatuses())
+	s.router.Get("/statusId", s.handlestatusById())
+	s.router.Get("/tasks", s.handleTasks())
 }
 
 func (s *server) handleSignUp() http.HandlerFunc {
@@ -74,6 +78,7 @@ func (s *server) handleSignUp() http.HandlerFunc {
 		err, code := handlers.SignUp(s.store, w, r)
 		if err != nil {
 			s.error(w, r, code, err)
+			return
 		} else {
 			s.success(w, r, code, nil)
 		}
@@ -85,8 +90,53 @@ func (s *server) handleLogIn() http.HandlerFunc {
 		err, code := handlers.LogIn(s.store, w, r)
 		if err != nil {
 			s.error(w, r, code, err)
+			return
 		} else {
 			s.success(w, r, code, nil)
 		}
+	}
+}
+
+func (s *server) handleGetStatuses() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		statuses, err := s.store.Status().GetAll()
+		if err != nil {
+			s.error(w, r, http.StatusInternalServerError, err)
+			return
+		} else {
+			s.success(w, r, http.StatusOK, statuses)
+		}
+	}
+}
+
+func (s *server) handlestatusById() http.HandlerFunc {
+	var name string
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewDecoder(r.Body).Decode(&name); err != nil {
+			s.error(w, r, http.StatusInternalServerError, err)
+			return
+		}
+
+		id, err := s.store.Status().GetIdByName(name)
+		if err != nil {
+			s.error(w, r, http.StatusInternalServerError, err)
+			return
+		}
+
+		s.success(w, r, http.StatusOK, id)
+	}
+}
+
+func (s *server) handleTasks() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		tasks, err := s.store.Task().GetAll()
+		if err != nil {
+			s.error(w, r, http.StatusInternalServerError, err)
+			return
+		}
+		s.success(w, r, http.StatusOK, tasks)
 	}
 }
