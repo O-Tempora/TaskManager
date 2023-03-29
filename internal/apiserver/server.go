@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -30,6 +31,7 @@ func newServer(store store.Store) *server {
 
 	s.initLogger(os.Stdout)
 	s.initRouter()
+
 	return s
 }
 
@@ -61,17 +63,31 @@ func (s *server) success(w http.ResponseWriter, r *http.Request, code int, data 
 	if data != nil {
 		json.NewEncoder(w).Encode(data)
 	}
+	s.logger.Info().Msgf("Method: [%s] URL: [%s] Code: [%d %s]",
+		r.Method, r.URL, code, http.StatusText(code))
 }
 
 func (s *server) initRouter() {
 	s.router.Post("/signup", s.handleSignUp())
+	s.router.Get("/signup", s.getSignup())
 	s.router.Post("/login", s.handleLogIn())
+	s.router.Get("/login", s.getLogin())
+
+	s.router.Get("/tasks", s.handleTasks())
 
 	s.router.Get("/statuses", s.handleGetStatuses())
 	s.router.Get("/statusId", s.handlestatusById())
-	s.router.Get("/tasks", s.handleTasks())
 }
 
+func (s *server) getSignup() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tpl, err := template.ParseFiles("templates/signup.html")
+		err = tpl.Execute(w, nil)
+		if err != nil {
+			s.error(w, r, 500, err)
+		}
+	}
+}
 func (s *server) handleSignUp() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -81,6 +97,16 @@ func (s *server) handleSignUp() http.HandlerFunc {
 			return
 		} else {
 			s.success(w, r, code, nil)
+		}
+	}
+}
+
+func (s *server) getLogin() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tpl, err := template.ParseFiles("templates/login.html")
+		err = tpl.Execute(w, nil)
+		if err != nil {
+			s.error(w, r, 500, err)
 		}
 	}
 }

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- <link rel="stylesheet" href="/static/css/logstyle.css"/> -->
+    <style>
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #2ec371;
+            border-radius: 4px;
+            padding: 20px;
+            background-color: #f3f3f3;
+            box-shadow: 0px 2px 2px 1px rgba(0, 0, 0, 0.2);
+            margin: auto;
+            margin-top: 10%;
+            width: 300px;
+        }
+
+        .fa-5x {
+            color: #2fc371;
+            border: 2px solid #2fc371;
+            border-radius: 100%;
+            padding: 15px;
+            margin-bottom: 10px;;
+        }
+
+        input, button {
+            height: 40px;
+            width: 250px;
+            font-size: 16px;
+            margin: 4px 0;
+            padding: 10px;
+        }
+
+        button {
+            background-color: #2ec371;
+            border: 0px;
+            border-radius: 3px;
+            font-size: 14px;
+            color: #fff;
+        }
+
+        .form-field-err {
+            width: 250px;
+            text-align: left;
+            padding: 0 0 0 5px;
+            color: red;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <form>
+        <i class="fa fa-user fa-5x" style="font-size: 30px; color: black;">Sign Up</i>
+        <input id="name" name="name" placeholder="Your name" autofocus>
+        <p class="form-field-err"></p>
+        <input id="phone" name="phone" type="tel" placeholder="Your phone number" autofocus>
+        <p class="form-field-err"></p>
+        <input id="email" name="email" placeholder="Enter your email" autofocus>
+        <p class="form-field-err"></p>
+        <input id="password" name="password" type="password" placeholder="Enter your password">
+        <p class="form-field-err"></p>
+        <button type="submit">Confirm</button>
+        <button type="button" onclick="toLogin()">Back to LogIn</button>
+    </form>
+    <!-- <a href="signup" id="create-account">Create account</a> -->
+    <script>
+        const form = document.querySelector('form');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData);
+            fetch('/signup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then((response) => {
+                response.json();
+                if (response.status === 200){
+                    window.location.href = "/login";
+                } else {
+                    alert(response.json);
+                }
+            })
+            // .then((response) => {
+            //     if (response.status === 200){
+            //         window.location.href = "/login";
+            //     } else {
+            //         alert("Incorrect credentials");
+            //     }
+            // });
+        });
+
+        function toLogin(){
+            window.location.href = "/login";
+        }
+    </script>
+</body>
+</html>    
