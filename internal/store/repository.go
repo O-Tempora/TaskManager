@@ -14,4 +14,8 @@ type FakeStatusRepository interface {
 
 type FakeTaskRepository interface {
 	GetAll() ([]models.JoinedTask, error)
+	Get(int) (models.JoinedTask, error)
+	DeleteTask(id int) error
+	Create(*models.JoinedTask, int) error
+	Update(*models.JoinedTask, int) error
 }

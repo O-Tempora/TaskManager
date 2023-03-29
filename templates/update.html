@@ -1,0 +1,31 @@
+
+{{ define "Edit" }}
+  {{ template "Header" }}
+    <div class="container col-5">
+        <h2>Update Task</h2>  
+        <form method="POST" action="/update">
+          <input type="hidden" name="id" value="{{ .Task.Id }}" />
+          <div class="form-group">
+            <label> Description </label>            
+            <textarea name="description" class="form-control" cols="50" rows="5">{{ .Task.Description }}</textarea>
+          </div>
+          <div class="form-group">
+              <label> Start At </label>
+              <input type="date" name="date1" value="{{ .Task.StartAt }}" class="form-control" />
+          </div>
+          <div class="form-group">
+            <label> Finish At </label>
+            <input type="date" name="date2" value="{{ .Task.FinishAt }}" class="form-control" />
+          </div>
+          <div class="form-group">
+            <label> Status: {{.Task.Status}} </label>
+            <select name="status" class="form-control">
+                {{range $key, $value := .Statuses}}
+                    <option value="{{ $value }}">{{ $value }}</option>
+                {{end}}
+            </select>
+          </div>
+          <input type="submit" value="Save" class="btn btn-primary" />
+        </form><br />
+    </div>  
+{{ end }}

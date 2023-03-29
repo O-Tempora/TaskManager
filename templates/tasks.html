@@ -1,0 +1,40 @@
+{{ define "Index" }}
+{{ template "Header" }}
+<div class="container">
+  <h2> Current workspace </h2>
+
+  <p>
+      <a href="/new" class="btn btn-primary">Add Task</a>
+  </p>
+  <table id="tabledata" class="table table-sm" style="width: 100%">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Description</th>
+        <th>Created At</th>
+        <th>Start At</th>
+        <th>Finish At</th>
+        <th>Status</th>
+        <th></th>        
+      </tr>
+    </thead>
+    <tbody>
+      {{ range . }}
+      <tr>
+        <td>{{ .Id }}</td>
+        <td> {{ .Description }}  </td>
+        <td>{{ .CreatedAt }} </td>
+        <td>{{ .StartAt }} </td>
+        <td>{{ .FinishAt }} </td>
+        <td>{{ .Status }} </td>
+        <td>
+          <a href="/edit?id={{ .Id }}" class="btn btn-primary">Update</a>
+          <a href="/delete?id={{ .Id }}" class="btn btn-danger">Delete</a>
+        </td>
+      </tr>
+      {{ end }}
+    </tbody>
+
+  </table>
+</div>
+{{ end }}  

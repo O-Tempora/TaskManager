@@ -2,12 +2,14 @@ package apiserver
 
 import (
 	"dip/internal/handlers"
+	"dip/internal/models"
 	"dip/internal/store"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -15,6 +17,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog"
 )
+
+var tmp = template.Must(template.ParseGlob("templates/*"))
 
 type server struct {
 	router *chi.Mux
@@ -70,10 +74,18 @@ func (s *server) success(w http.ResponseWriter, r *http.Request, code int, data 
 func (s *server) initRouter() {
 	s.router.Post("/signup", s.handleSignUp())
 	s.router.Get("/signup", s.getSignup())
+
 	s.router.Post("/login", s.handleLogIn())
 	s.router.Get("/login", s.getLogin())
 
 	s.router.Get("/tasks", s.handleTasks())
+	s.router.Get("/delete", s.deleteTask())
+
+	s.router.Get("/new", s.addNew())
+	s.router.Post("/create", s.createTask())
+
+	s.router.Get("/edit", s.editTask())
+	s.router.Post("/update", s.updateTask())
 
 	s.router.Get("/statuses", s.handleGetStatuses())
 	s.router.Get("/statusId", s.handlestatusById())
@@ -119,6 +131,7 @@ func (s *server) handleLogIn() http.HandlerFunc {
 			return
 		} else {
 			s.success(w, r, code, nil)
+			//http.Redirect(w, r, "/tasks", code)
 		}
 	}
 }
@@ -157,12 +170,110 @@ func (s *server) handlestatusById() http.HandlerFunc {
 
 func (s *server) handleTasks() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		tasks, err := s.store.Task().GetAll()
+		//w.Header().Set("Content-Type", "application/json")
+		tasks, _ := s.store.Task().GetAll()
+		// tpl, _ := template.ParseFiles("templates/tasks.html")
+		// tpl.Execute(w, tasks)
+		tmp.ExecuteTemplate(w, "Index", tasks)
+		// if err != nil {
+		// 	s.error(w, r, http.StatusInternalServerError, err)
+		// 	return
+		// }
+		// s.success(w, r, http.StatusOK, tasks)
+	}
+}
+
+func (s *server) deleteTask() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.URL.Query().Get("id")
+		value, err := strconv.Atoi(id)
 		if err != nil {
-			s.error(w, r, http.StatusInternalServerError, err)
+			s.error(w, r, 500, err)
 			return
 		}
-		s.success(w, r, http.StatusOK, tasks)
+
+		s.store.Task().DeleteTask(value)
+		http.Redirect(w, r, "/tasks", 301)
+	}
+}
+
+func (s *server) createTask() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		t := &models.JoinedTask{}
+		// if err := json.NewDecoder(r.Body).Decode(t); err != nil {
+		// 	s.error(w, r, 400, err)
+		// 	return
+		// }
+		t.Description = r.FormValue("descr")
+		t.StartAt = r.FormValue("date1")
+		t.FinishAt = r.FormValue("date2")
+		t.Status = r.FormValue("status")
+		status, err := s.store.Status().GetIdByName(t.Status)
+		if err != nil {
+			s.error(w, r, 400, err)
+			return
+		}
+
+		s.store.Task().Create(t, status)
+		http.Redirect(w, r, "/tasks", 301)
+	}
+}
+
+func (s *server) updateTask() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		t := &models.JoinedTask{}
+		t.Id, _ = strconv.Atoi(r.FormValue("id"))
+		t.Description = r.FormValue("description")
+		t.StartAt = r.FormValue("date1")
+		t.FinishAt = r.FormValue("date2")
+		t.Status = r.FormValue("status")
+		status, err := s.store.Status().GetIdByName(t.Status)
+		if err != nil {
+			s.error(w, r, 400, err)
+			return
+		}
+
+		err = s.store.Task().Update(t, status)
+		if err != nil {
+			s.error(w, r, 400, err)
+		}
+		http.Redirect(w, r, "/tasks", 301)
+	}
+}
+
+func (s *server) addNew() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		statuses, _ := s.store.Status().GetAll()
+		names := make([]string, 0)
+		for _, v := range statuses {
+			names = append(names, v.Name)
+		}
+		tmp.ExecuteTemplate(w, "New", names)
+	}
+}
+
+func (s *server) editTask() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		type respone struct {
+			Task     models.JoinedTask
+			Statuses []string
+		}
+		buf := &respone{models.JoinedTask{}, make([]string, 0)}
+		id := r.URL.Query().Get("id")
+		i, _ := strconv.Atoi(id)
+		task, err := s.store.Task().Get(i)
+		if err != nil {
+			s.error(w, r, 500, err)
+			return
+		}
+		statuses, _ := s.store.Status().GetAll()
+		//names := make([]string, 0)
+		for _, v := range statuses {
+			buf.Statuses = append(buf.Statuses, v.Name)
+		}
+
+		buf.Task = task
+
+		tmp.ExecuteTemplate(w, "Edit", buf)
 	}
 }
