@@ -1,0 +1,22 @@
+version: '3'
+services:
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_DB: "dip"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+    ports:
+      - 5431:5431
+
+  app:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: back
+    ports:
+      - 5192:5192
+    environment:
+      DB_SERVER: postgres
+    links:
+      - postgres
