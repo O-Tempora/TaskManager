@@ -81,10 +81,10 @@
             })
             .then((response) => {
                 response.json();
-                if (response.status === 200){
+                if (response.status === 201){
                     window.location.href = "/login";
                 } else {
-                    alert(response.json);
+                    alert("Invalid credentials");
                 }
             })
             // .then((response) => {
