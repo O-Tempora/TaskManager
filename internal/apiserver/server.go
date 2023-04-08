@@ -53,14 +53,21 @@ func (s *server) initLogger(wr io.Writer) {
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
-func (s *server) error(w http.ResponseWriter, r *http.Request, code int, err error) {
-	s.success(w, r, code, map[string]string{"error": err.Error()})
-}
-func (s *server) success(w http.ResponseWriter, r *http.Request, code int, data interface{}) {
+func (s *server) respond(w http.ResponseWriter, r *http.Request, code int, data interface{}, err error) {
 	w.WriteHeader(code)
+	if err != nil {
+		response := map[string]string{"error": err.Error()}
+		json.NewEncoder(w).Encode(response)
+		s.logger.Error().Msgf("[Method]: %s [URL]: %s [Code]: %d %s [Error]: %s",
+			r.Method, r.URL, code, http.StatusText(code), err.Error())
+		return
+	}
+
 	if data != nil {
 		json.NewEncoder(w).Encode(data)
 	}
+	s.logger.Info().Msgf("[Method]: %s [URL]: %s [Code]: %d %s",
+		r.Method, r.URL, code, http.StatusText(code))
 }
 
 func (s *server) initRouter() {
@@ -72,21 +79,15 @@ func (s *server) handleSignUp() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		err, code := handlers.SignUp(s.store, w, r)
-		if err != nil {
-			s.error(w, r, code, err)
-		} else {
-			s.success(w, r, code, nil)
-		}
+		s.respond(w, r, code, nil, err)
 	}
 }
 func (s *server) handleLogIn() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		err, code := handlers.LogIn(s.store, w, r)
-		if err != nil {
-			s.error(w, r, code, err)
-		} else {
-			s.success(w, r, code, nil)
-		}
+		code, token, err := handlers.LogIn(s.store, w, r)
+		s.respond(w, r, code, map[string]string{
+			"accessToken": token,
+		}, err)
 	}
 }

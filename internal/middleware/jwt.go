@@ -6,7 +6,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var signature = []byte("secretKeytoSign")
+var signature = []byte("7fec87f134b063cd0546d7059f7d1acb4c365229b9dd4c66259c67b65ee33a65")
 
 type TokenPayload struct {
 	Login string
