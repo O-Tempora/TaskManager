@@ -1,0 +1,8 @@
+port: ":5192"
+log_level: "Debug"
+dbconfig:
+  user: "postgres"
+  password: "postgres"
+  dbname: dip
+  host: "postgres"
+  dbport: 5432

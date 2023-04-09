@@ -24,6 +24,11 @@ func Start(config *Config) error {
 func newDB(s *DBconfig) (*sql.DB, error) {
 	db, err := sql.Open("pgx", fmt.Sprintf("host=%s dbname=%s user=%s password=%s", s.Host, s.DBname, s.User, s.Password))
 	if err != nil {
+		// c, ioErr := ioutil.ReadFile("./migrations/dump-dip-202304081654.sql")
+		// fmt.Println(ioErr)
+		// sql := string(c)
+		// con := &pgx.Conn{}
+		// con.Exec(context.Background(), sql)
 		return nil, err
 	}
 
