@@ -11,6 +11,7 @@ type DBconfig struct {
 	DBname   string `yaml:"dbname"`
 	User     string `yaml:"user"`
 	Password string `yaml:"password"`
+	DBort    string `yaml:"dbport"`
 }
 
 func NewConfig() *Config {

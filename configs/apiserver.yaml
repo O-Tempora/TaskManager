@@ -3,6 +3,6 @@ log_level: "Debug"
 dbconfig:
   user: "postgres"
   password: "postgres"
-  dbname: dip
+  dbname: "dip"
   host: "localhost"
   dbport: 5432

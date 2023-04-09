@@ -1,14 +1,5 @@
-version: '3'
+version: '3.8'
 services:
-  postgres:
-    image: postgres
-    environment:
-      POSTGRES_DB: "dip"
-      POSTGRES_USER: "postgres"
-      POSTGRES_PASSWORD: "postgres"
-    ports:
-      - 5431:5431
-
   app:
     build:
       context: ./
@@ -16,7 +7,32 @@ services:
     container_name: back
     ports:
       - 5192:5192
+    networks:
+      - diploma_net
     environment:
-      DB_SERVER: postgres
-    links:
-      - postgres
+      - DB_SERVER=db
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    restart: always
+    image: postgres
+    environment:
+      - POSTGRES_DB=dip
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    container_name: postgres
+    ports:
+      - 5431:5432
+    networks:
+      - diploma_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 1s
+      retries: 3
+
+networks:
+  diploma_net:
+    name: diploma_net
