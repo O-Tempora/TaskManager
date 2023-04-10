@@ -9,12 +9,13 @@ import (
 )
 
 type Person struct {
-	Id       int    `json:"id"`
-	Name     string `json:"name"`
-	Password string `json:"password"`
-	Email    string `json:"email"`
-	Settings string `json:"settings"`
-	Phone    string `json:"phones"`
+	Id           int    `json:"id"`
+	Name         string `json:"name"`
+	Password     string `json:"password"`
+	Email        string `json:"email"`
+	Settings     string `json:"settings"`
+	Phone        string `json:"phones"`
+	IsMaintainer bool   `json:"isMaintainer"`
 }
 
 func (p *Person) Validate() error {
