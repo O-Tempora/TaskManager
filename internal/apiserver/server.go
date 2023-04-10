@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"dip/internal/handlers"
+	"dip/internal/middleware"
 	"dip/internal/store"
 	"encoding/json"
 	"fmt"
@@ -58,7 +59,7 @@ func (s *server) respond(w http.ResponseWriter, r *http.Request, code int, data 
 	if err != nil {
 		response := map[string]string{"error": err.Error()}
 		json.NewEncoder(w).Encode(response)
-		s.logger.Error().Msgf("[Method]: %s [URL]: %s [Code]: %d %s [Error]: %s",
+		s.logger.Error().Msgf("Resonse: method  %s, URL  %s, code  %d %s, error  %s",
 			r.Method, r.URL, code, http.StatusText(code), err.Error())
 		return
 	}
@@ -66,11 +67,12 @@ func (s *server) respond(w http.ResponseWriter, r *http.Request, code int, data 
 	if data != nil {
 		json.NewEncoder(w).Encode(data)
 	}
-	s.logger.Info().Msgf("[Method]: %s [URL]: %s [Code]: %d %s",
+	s.logger.Info().Msgf("Response: method  %s, URL  %s, Code  %d %s",
 		r.Method, r.URL, code, http.StatusText(code))
 }
 
 func (s *server) initRouter() {
+	s.router.Use(middleware.LogRequest(s.logger))
 	s.router.Post("/signup", s.handleSignUp())
 	s.router.Post("/login", s.handleLogIn())
 }

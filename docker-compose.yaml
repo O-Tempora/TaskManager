@@ -18,6 +18,8 @@ services:
   postgres:
     restart: always
     image: postgres
+    # volumes:
+    #   - ./.database/postgres/data:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=dip
       - POSTGRES_USER=postgres
