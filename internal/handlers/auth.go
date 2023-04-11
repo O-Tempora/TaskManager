@@ -27,7 +27,7 @@ func LogIn(store store.Store, w http.ResponseWriter, r *http.Request) (int, stri
 		return http.StatusUnauthorized, "", err
 	}
 
-	token, err := middleware.GenerateJWT(p.Phone, p.Email, p.Name)
+	token, err := middleware.GenerateJWT(p)
 	if err != nil {
 		return http.StatusBadRequest, "", err
 	}

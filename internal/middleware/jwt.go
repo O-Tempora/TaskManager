@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"dip/internal/models"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -9,15 +10,17 @@ import (
 const signature = "7fec87f134b063cd0546d7059f7d1acb4c365229b9dd4c66259c67b65ee33a65"
 
 type TokenPayload struct {
-	Login string
-	Phone string
-	Email string
+	Id           int
+	Login        string
+	Phone        string
+	Email        string
+	IsMaintainer bool
 	jwt.RegisteredClaims
 }
 
-func GenerateJWT(phone, email, login string) (string, error) {
+func GenerateJWT(p *models.Person) (string, error) {
 	tp := &TokenPayload{
-		login, phone, email,
+		p.Id, p.Name, p.Phone, p.Email, p.IsMaintainer,
 		jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 20)),

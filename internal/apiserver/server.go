@@ -73,8 +73,10 @@ func (s *server) respond(w http.ResponseWriter, r *http.Request, code int, data 
 
 func (s *server) initRouter() {
 	s.router.Use(middleware.LogRequest(s.logger))
+
 	s.router.Post("/signup", s.handleSignUp())
 	s.router.Post("/login", s.handleLogIn())
+	s.router.Get("/home", s.handleHome())
 }
 
 func (s *server) handleSignUp() http.HandlerFunc {
@@ -91,5 +93,13 @@ func (s *server) handleLogIn() http.HandlerFunc {
 		s.respond(w, r, code, map[string]string{
 			"accessToken": token,
 		}, err)
+	}
+}
+
+func (s *server) handleHome() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		ws, code, err := handlers.GetHome(s.store, r.URL.Query().Get("id"))
+		s.respond(w, r, code, ws, err)
 	}
 }
