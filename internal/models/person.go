@@ -18,6 +18,12 @@ type Person struct {
 	IsMaintainer bool   `json:"isMaintainer"`
 }
 
+type PersonInTask struct {
+	Id   int    `json:"id"`
+	Name string `json:"name"`
+	Role string `json:"role"`
+}
+
 func (p *Person) Validate() error {
 	if err := validation.ValidateStruct(p,
 		validation.Field(&p.Email, validation.Required, is.Email),

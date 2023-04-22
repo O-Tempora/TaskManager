@@ -76,7 +76,7 @@ func (s *server) initRouter() {
 
 	s.router.Post("/signup", s.handleSignUp())
 	s.router.Post("/login", s.handleLogIn())
-	s.router.Get("/home", s.handleHome())
+	s.router.Get("/home/{id}", s.handleHome())
 }
 
 func (s *server) handleSignUp() http.HandlerFunc {
@@ -99,7 +99,7 @@ func (s *server) handleLogIn() http.HandlerFunc {
 func (s *server) handleHome() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		ws, code, err := handlers.GetHome(s.store, r.URL.Query().Get("id"))
+		ws, code, err := handlers.GetHome(s.store, chi.URLParam(r, "id"))
 		s.respond(w, r, code, ws, err)
 	}
 }

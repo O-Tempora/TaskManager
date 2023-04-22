@@ -8,10 +8,14 @@ type WorkspaceRep struct {
 	store *Store
 }
 
-func (r *WorkspaceRep) GetByUser(id int) ([]models.WorkspaceJoined, error) {
-	ws := make([]models.WorkspaceJoined, 0)
+func (r *WorkspaceRep) GetByUser(id int) (*models.HomePage, error) {
+	p := &models.HomePage{
+		Ws:       make([]models.WorkspaceJoined, 0),
+		Settings: "",
+	}
 	w := &models.WorkspaceJoined{}
-	rows, err := r.store.db.Query(`select pw.workspace_id, w.name, w.description, w.created_at, ur.name
+
+	rows, err := r.store.db.Query(`select pw.workspace_id, w.name, w.description, w.created_at, ur.name, p.settings
 		from person_workspace as pw 
 		join persons as p on p.id = pw.person_id 
 		join user_role as ur on ur.id = pw.role_id 
@@ -23,12 +27,12 @@ func (r *WorkspaceRep) GetByUser(id int) ([]models.WorkspaceJoined, error) {
 	}
 
 	for rows.Next() {
-		err = rows.Scan(&w.Id, &w.Name, &w.Description, &w.CreatedAt, &w.Role)
+		err = rows.Scan(&w.Id, &w.Name, &w.Description, &w.CreatedAt, &w.Role, &p.Settings)
 		if err != nil {
 			return nil, err
 		}
-		ws = append(ws, *w)
+		p.Ws = append(p.Ws, *w)
 	}
 
-	return ws, nil
+	return p, nil
 }

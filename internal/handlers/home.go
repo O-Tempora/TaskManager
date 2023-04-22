@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-func GetHome(store store.Store, ids string) ([]models.WorkspaceJoined, int, error) {
+func GetHome(store store.Store, ids string) (*models.HomePage, int, error) {
 	id, err := strconv.Atoi(ids)
 	if err != nil {
 		return nil, 422, err

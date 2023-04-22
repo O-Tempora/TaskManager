@@ -9,6 +9,9 @@ type Store struct {
 	db           *sql.DB
 	personRep    *PersonRep
 	workspaceRep *WorkspaceRep
+	taskGroupRep *TaskGroupRep
+	statusRep    *StatusRep
+	taskRep      *TaskRep
 }
 
 func New(db *sql.DB) *Store {
@@ -37,4 +40,37 @@ func (s *Store) Workspace() store.WorkspaceRepository {
 		store: s,
 	}
 	return s.workspaceRep
+}
+
+func (s *Store) TaskGroup() store.TaskGroupRepository {
+	if s.taskGroupRep != nil {
+		return s.taskGroupRep
+	}
+
+	s.taskGroupRep = &TaskGroupRep{
+		store: s,
+	}
+	return s.taskGroupRep
+}
+
+func (s *Store) Status() store.StatusRepository {
+	if s.statusRep != nil {
+		return s.statusRep
+	}
+
+	s.statusRep = &StatusRep{
+		store: s,
+	}
+	return s.statusRep
+}
+
+func (s *Store) Task() store.TaskRepository {
+	if s.taskRep != nil {
+		return s.taskRep
+	}
+
+	s.taskRep = &TaskRep{
+		store: s,
+	}
+	return s.taskRep
 }

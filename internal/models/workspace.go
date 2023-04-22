@@ -16,3 +16,8 @@ type WorkspaceJoined struct {
 	CreatedAt   time.Time `json:"createdAt"`
 	Role        string    `json:"role"`
 }
+
+type HomePage struct {
+	Ws       []WorkspaceJoined `json:"workspaces"`
+	Settings string            `json:"settings"`
+}
