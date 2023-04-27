@@ -24,8 +24,10 @@ func (r *TaskRep) GetAllByGroup(id int) ([]models.TaskOverview, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&t.Id, &t.Description, &date, &t.Status, ws_id)
+		err = rows.Scan(&t.Id, &t.Description, &date, &t.Status, &ws_id)
 		if err != nil {
 			return nil, err
 		}

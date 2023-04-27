@@ -7,6 +7,9 @@ type TaskGroup struct {
 }
 
 type FullGroup struct {
-	Group TaskGroup      `json:"group"`
+	//Group TaskGroup      `json:"group"`
+	Id    int            `json:"id"`
+	Name  string         `json:"name"`
+	Color string         `json:"color"`
 	Tasks []TaskOverview `json:"tasks"`
 }

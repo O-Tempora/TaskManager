@@ -26,6 +26,7 @@ func (r *WorkspaceRep) GetByUser(id int) (*models.HomePage, error) {
 		return nil, err
 	}
 
+	defer rows.Close()
 	for rows.Next() {
 		err = rows.Scan(&w.Id, &w.Name, &w.Description, &w.CreatedAt, &w.Role, &p.Settings)
 		if err != nil {

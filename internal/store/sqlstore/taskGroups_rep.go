@@ -14,6 +14,8 @@ func (r *TaskGroupRep) GetByWorkspaceId(id int) ([]models.TaskGroup, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	defer rows.Close()
 	for rows.Next() {
 		err = rows.Scan(&g.Id, &g.Name, &g.Color)
 		if err != nil {

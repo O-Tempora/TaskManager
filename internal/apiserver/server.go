@@ -44,7 +44,7 @@ func (s *server) initLogger(wr io.Writer) {
 		},
 		FormatTimestamp: func(i interface{}) string {
 			t, _ := time.Parse(time.RFC3339, fmt.Sprintf("%s", i))
-			return fmt.Sprintf("%s", t.Format(time.RFC1123))
+			return t.Format(time.RFC1123)
 		},
 	}
 	s.logger = zerolog.New(output).With().Timestamp().Logger().Level(zerolog.DebugLevel)
@@ -76,7 +76,12 @@ func (s *server) initRouter() {
 
 	s.router.Post("/signup", s.handleSignUp())
 	s.router.Post("/login", s.handleLogIn())
-	s.router.Get("/home/{id}", s.handleHome())
+
+	s.router.Group(func(r chi.Router) {
+		r.Use(middleware.AuthorizeToken())
+		r.Get("/home", s.handleHome())
+		r.Get("/home/{id}/{ws}", s.handleWorkspace())
+	})
 }
 
 func (s *server) handleSignUp() http.HandlerFunc {
@@ -99,7 +104,20 @@ func (s *server) handleLogIn() http.HandlerFunc {
 func (s *server) handleHome() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		ws, code, err := handlers.GetHome(s.store, chi.URLParam(r, "id"))
+		tp, err := middleware.ParseCredentials(r.Context())
+		if err != nil {
+			s.respond(w, r, http.StatusUnauthorized, nil, err)
+			return
+		}
+		ws, code, err := handlers.GetHome(s.store, tp.Id)
+		s.respond(w, r, code, ws, err)
+	}
+}
+
+func (s *server) handleWorkspace() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		ws, code, err := handlers.GetFullWorkspace(s.store, chi.URLParam(r, "ws"))
 		s.respond(w, r, code, ws, err)
 	}
 }

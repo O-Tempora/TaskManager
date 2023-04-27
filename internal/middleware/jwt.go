@@ -1,7 +1,11 @@
 package middleware
 
 import (
+	"context"
 	"dip/internal/models"
+	"errors"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -37,14 +41,49 @@ func GenerateJWT(p *models.Person) (string, error) {
 	return st, nil
 }
 
-func ValidateJWT(token string) (TokenPayload, error) {
-	t, _ := jwt.ParseWithClaims(token, &TokenPayload{}, func(t *jwt.Token) (interface{}, error) {
+func ValidateJWT(token string) (*TokenPayload, error) {
+	t, err := jwt.ParseWithClaims(token, &TokenPayload{}, func(t *jwt.Token) (interface{}, error) {
 		return []byte(signature), nil
 	})
-
-	if claims, ok := t.Claims.(*TokenPayload); ok && t.Valid {
-		return *claims, nil
+	if err != nil {
+		return nil, err
 	}
 
-	return TokenPayload{}, nil
+	if claims, ok := t.Claims.(*TokenPayload); ok && t.Valid && claims.ExpiresAt.After(time.Now()) {
+		return claims, nil
+	}
+
+	return nil, errors.New("failed to decode token")
+}
+
+func AuthorizeToken() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+			auth := r.Header.Get("Authorization")
+			token := strings.Split(auth, " ")
+			if len(token) < 2 {
+				http.Error(w, http.ErrAbortHandler.Error(), http.StatusBadRequest)
+				return
+			}
+
+			pl, err := ValidateJWT(token[1])
+			ctx := r.Context()
+			if err != nil {
+				http.Error(w, http.ErrAbortHandler.Error(), http.StatusUnauthorized)
+				return
+			}
+			ctx = context.WithValue(ctx, "creds", pl)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		}
+		return http.HandlerFunc(fn)
+	}
+}
+
+func ParseCredentials(ctx context.Context) (*TokenPayload, error) {
+	tp, ok := ctx.Value("creds").(*TokenPayload)
+	if !ok {
+		return nil, errors.New("invalid token")
+	}
+
+	return tp, nil
 }

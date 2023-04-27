@@ -33,7 +33,8 @@ func (r *PersonRep) GetAllAssignedToTask(id int, ws_id int) ([]models.PersonInTa
 	p := &models.PersonInTask{}
 	persons := make([]models.PersonInTask, 0)
 
-	rows, err := r.store.db.Query(`select p.id, p.name, n1.name as role from persons p 
+	//Mb add n1.name to returned values of select
+	rows, err := r.store.db.Query(`select p.id, p.name as role from persons p 
 		join (select * from person_workspace pw 
 			join user_role ur
 			on pw.role_id = ur.id 
@@ -47,6 +48,8 @@ func (r *PersonRep) GetAllAssignedToTask(id int, ws_id int) ([]models.PersonInTa
 	if err != nil {
 		return nil, err
 	}
+
+	defer rows.Close()
 	for rows.Next() {
 		err = rows.Scan(&p.Id, &p.Name)
 		if err != nil {
