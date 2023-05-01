@@ -3,12 +3,14 @@ package apiserver
 import (
 	"dip/internal/handlers"
 	"dip/internal/middleware"
+	"dip/internal/models"
 	"dip/internal/store"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -73,14 +75,17 @@ func (s *server) respond(w http.ResponseWriter, r *http.Request, code int, data 
 
 func (s *server) initRouter() {
 	s.router.Use(middleware.LogRequest(s.logger))
-
 	s.router.Post("/signup", s.handleSignUp())
 	s.router.Post("/login", s.handleLogIn())
-
 	s.router.Group(func(r chi.Router) {
 		r.Use(middleware.AuthorizeToken())
 		r.Get("/home", s.handleHome())
-		r.Get("/home/{id}/{ws}", s.handleWorkspace())
+		s.router.Route("/workspace-{ws}", func(r chi.Router) {
+			r.Get("/", s.handleWorkspace())
+			r.Get("/task-{id}", s.handleTask())
+			r.Put("/task-{id}", s.handleUpdateTask())
+			r.Delete("/task-{id}", s.handleDeleteTask())
+		})
 	})
 }
 
@@ -119,5 +124,52 @@ func (s *server) handleWorkspace() http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		ws, code, err := handlers.GetFullWorkspace(s.store, chi.URLParam(r, "ws"))
 		s.respond(w, r, code, ws, err)
+	}
+}
+func (s *server) handleTask() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		task, err := s.store.Task().GetById(id)
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, task, nil)
+	}
+}
+func (s *server) handleUpdateTask() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		t := &models.Task{}
+		if err := json.NewDecoder(r.Body).Decode(t); err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		err := s.store.Task().Update(t)
+		if err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
+	}
+}
+func (s *server) handleDeleteTask() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		if err = s.store.Task().Delete(id); err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
 	}
 }

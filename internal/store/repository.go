@@ -6,6 +6,7 @@ type PersonRepository interface {
 	Create(*models.Person) error
 	GetByEmail(email string) (*models.Person, error)
 	GetAllAssignedToTask(id int, ws_id int) ([]models.PersonInTask, error)
+	GetAllByWorkspace(id int) ([]models.PersonInTask, error)
 }
 
 type WorkspaceRepository interface {
@@ -23,4 +24,7 @@ type StatusRepository interface {
 
 type TaskRepository interface {
 	GetAllByGroup(id int) ([]models.TaskOverview, error)
+	GetById(taskId int) (*models.Task, error)
+	Delete(id int) error
+	Update(task *models.Task) error
 }
