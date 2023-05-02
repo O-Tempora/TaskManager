@@ -28,15 +28,8 @@ func (r *StatusRep) GetAll() ([]models.Status, error) {
 func (r *StatusRep) GetIdByName(name string) (int, error) {
 	var id int = 0
 
-	rows, err := r.store.db.Query(`select s.Id from statuses s where s.Name = &1`, name)
-	if err != nil {
+	if err := r.store.db.QueryRow(`select s.Id from statuses s where s.Name = $1`, name).Scan(&id); err != nil {
 		return 0, err
-	}
-	for rows.Next() {
-		err = rows.Scan(&id)
-		if err != nil {
-			return 0, err
-		}
 	}
 
 	return id, nil

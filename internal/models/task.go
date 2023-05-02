@@ -11,7 +11,7 @@ type Task struct {
 	StartdAt    time.Time `json:"startAt"`
 	FinishAt    time.Time `json:"finishAt"`
 	GroupId     int       `json:"groupId"`
-	Status      string    `json:"statusId"`
+	Status      string    `json:"status"`
 }
 
 type TaskOverview struct {

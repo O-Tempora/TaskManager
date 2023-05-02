@@ -80,7 +80,7 @@ func (s *server) initRouter() {
 	s.router.Group(func(r chi.Router) {
 		r.Use(middleware.AuthorizeToken())
 		r.Get("/home", s.handleHome())
-		s.router.Route("/workspace-{ws}", func(r chi.Router) {
+		r.Route("/workspace-{ws}", func(r chi.Router) {
 			r.Get("/", s.handleWorkspace())
 			r.Get("/task-{id}", s.handleTask())
 			r.Put("/task-{id}", s.handleUpdateTask())

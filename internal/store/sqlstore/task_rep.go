@@ -76,9 +76,9 @@ func (r *TaskRep) Update(task *models.Task) error {
 		return err
 	}
 
-	res, err := r.store.db.Exec(`update tasks t
-		set t.description = $1, t.start_at = $2, t.finish_at = $3, t.group_id = $4, t.status_id = $5
-		where t.id = $6`,
+	res, err := r.store.db.Exec(`update tasks
+		set description = $1, start_at = $2, finish_at = $3, group_id = $4, status_id = $5
+		where id = $6`,
 		task.Description, task.StartdAt, task.FinishAt, task.GroupId, statusId, task.Id,
 	)
 
