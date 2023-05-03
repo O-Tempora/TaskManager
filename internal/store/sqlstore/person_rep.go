@@ -87,3 +87,50 @@ func (r *PersonRep) GetAllByWorkspace(id int) ([]models.PersonInTask, error) {
 
 	return persons, nil
 }
+
+func (r *PersonRep) GetIdByName(name string) (int, error) {
+	id := -1
+	if err := r.store.db.QueryRow(`select p.id from persons p
+		where p.name = $1`,
+		name,
+	).Scan(&id); err != nil {
+		return -1, err
+	}
+	return id, nil
+}
+func (r *PersonRep) Assign(name string, task int) error {
+	id, err := r.store.Person().GetIdByName(name)
+	if err != nil {
+		return err
+	}
+	res, err := r.store.db.Exec(`insert into person_task 
+		(person_id, task_id)
+		values ($1, $2)
+		on conflict do nothing`,
+		id, task,
+	)
+	if err != nil {
+		return err
+	}
+	if _, err = res.RowsAffected(); err != nil {
+		return err
+	}
+	return nil
+}
+func (r *PersonRep) Dismiss(name string, task int) error {
+	id, err := r.store.Person().GetIdByName(name)
+	if err != nil {
+		return err
+	}
+	res, err := r.store.db.Exec(`delete from person_task pt
+		where pt.person_id = $1 and pt.task_id = $2`,
+		id, task,
+	)
+	if err != nil {
+		return err
+	}
+	if _, err = res.RowsAffected(); err != nil {
+		return err
+	}
+	return nil
+}

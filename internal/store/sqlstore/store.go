@@ -12,6 +12,7 @@ type Store struct {
 	taskGroupRep *TaskGroupRep
 	statusRep    *StatusRep
 	taskRep      *TaskRep
+	roleRep      *RoleRep
 }
 
 func New(db *sql.DB) *Store {
@@ -73,4 +74,15 @@ func (s *Store) Task() store.TaskRepository {
 		store: s,
 	}
 	return s.taskRep
+}
+
+func (s *Store) Role() store.RoleRepository {
+	if s.roleRep != nil {
+		return s.roleRep
+	}
+
+	s.roleRep = &RoleRep{
+		store: s,
+	}
+	return s.roleRep
 }

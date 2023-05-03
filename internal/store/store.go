@@ -6,4 +6,5 @@ type Store interface {
 	TaskGroup() TaskGroupRepository
 	Status() StatusRepository
 	Task() TaskRepository
+	Role() RoleRepository
 }

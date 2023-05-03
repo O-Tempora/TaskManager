@@ -35,7 +35,7 @@ func LogIn(store store.Store, w http.ResponseWriter, r *http.Request) (int, stri
 	return http.StatusOK, token, nil
 }
 
-func SignUp(store store.Store, w http.ResponseWriter, r *http.Request) (error, int) {
+func SignUp(store store.Store, w http.ResponseWriter, r *http.Request) (int, error) {
 	type request struct {
 		Name     string `json:"name"`
 		Email    string `json:"email"`
@@ -45,7 +45,7 @@ func SignUp(store store.Store, w http.ResponseWriter, r *http.Request) (error, i
 
 	req := &request{}
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-		return err, http.StatusBadRequest
+		return http.StatusBadRequest, err
 	}
 	p := &models.Person{
 		Email:    req.Email,
@@ -56,8 +56,8 @@ func SignUp(store store.Store, w http.ResponseWriter, r *http.Request) (error, i
 	}
 
 	if err := store.Person().Create(p); err != nil {
-		return err, http.StatusUnprocessableEntity
+		return http.StatusUnprocessableEntity, err
 	}
 
-	return nil, http.StatusCreated
+	return http.StatusCreated, nil
 }

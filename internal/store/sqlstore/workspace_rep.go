@@ -2,6 +2,7 @@ package sqlstore
 
 import (
 	"dip/internal/models"
+	"time"
 )
 
 type WorkspaceRep struct {
@@ -36,4 +37,43 @@ func (r *WorkspaceRep) GetByUser(id int) (*models.HomePage, error) {
 	}
 
 	return p, nil
+}
+
+func (r *WorkspaceRep) Create(name, description string) error {
+	res, err := r.store.db.Exec(`insert into workspaces
+		(name, description, created_at)
+		values ($1, $2, $3)`,
+		name, description, time.Now(),
+	)
+	if err != nil {
+		return err
+	}
+	if _, err = res.RowsAffected(); err != nil {
+		return err
+	}
+	return nil
+}
+func (r *WorkspaceRep) Update(w *models.Workspace) error {
+	res, err := r.store.db.Exec(`update workspaces
+		set name = $1, description = $2
+		where id = $3`,
+		w.Name, w.Description,
+	)
+	if err != nil {
+		return err
+	}
+	if _, err = res.RowsAffected(); err != nil {
+		return err
+	}
+	return nil
+}
+func (r *WorkspaceRep) Delete(id int) error {
+	res, err := r.store.db.Exec(`delete from user_roles ur where ur.id = $1`, id)
+	if err != nil {
+		return err
+	}
+	if _, err := res.RowsAffected(); err != nil {
+		return err
+	}
+	return nil
 }

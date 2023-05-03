@@ -1,6 +1,9 @@
 package sqlstore
 
-import "dip/internal/models"
+import (
+	"dip/internal/models"
+	"errors"
+)
 
 type TaskGroupRep struct {
 	store *Store
@@ -25,4 +28,70 @@ func (r *TaskGroupRep) GetByWorkspaceId(id int) ([]models.TaskGroup, error) {
 	}
 
 	return groups, nil
+}
+
+func (r *TaskGroupRep) FindByNameAndWs(ws_id int, name string) (bool, error) {
+	var count int
+	if err := r.store.db.QueryRow(`select count(*) from task_groups tg 
+		where tg.name = $1 and tg.workspace_id = $2`,
+		name, ws_id,
+	).Scan(&count); err != nil {
+		return false, err
+	}
+
+	if count > 0 {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (r *TaskGroupRep) Create(ws_id int, name, color string) error {
+	exists, err := r.store.TaskGroup().FindByNameAndWs(ws_id, name)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return errors.New("group with this name already exists")
+	}
+	res, err := r.store.db.Exec(`insert into task_groups
+		(name, color, workspace_id)
+		values ($1, $2, $3)`,
+		name, color, ws_id,
+	)
+	if err != nil {
+		return err
+	}
+	if _, err = res.RowsAffected(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *TaskGroupRep) Delete(id int) error {
+	res, err := r.store.db.Exec(`delete from task_groups tg where tg.id = $1`, id)
+	if err != nil {
+		return err
+	}
+
+	if _, err := res.RowsAffected(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *TaskGroupRep) Update(tg *models.TG) error {
+	res, err := r.store.db.Exec(`update task_groups
+		set name = $1, color = $2, workspace_id = $3
+		where id = $4`,
+		tg.Name, tg.Color, tg.WorkspaceId, tg.Id,
+	)
+	if err != nil {
+		return err
+	}
+	if _, err = res.RowsAffected(); err != nil {
+		return err
+	}
+	return nil
 }

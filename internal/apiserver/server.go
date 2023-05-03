@@ -82,9 +82,18 @@ func (s *server) initRouter() {
 		r.Get("/home", s.handleHome())
 		r.Route("/workspace-{ws}", func(r chi.Router) {
 			r.Get("/", s.handleWorkspace())
-			r.Get("/task-{id}", s.handleTask())
-			r.Put("/task-{id}", s.handleUpdateTask())
-			r.Delete("/task-{id}", s.handleDeleteTask())
+			r.Route("/group", func(r chi.Router) {
+				r.Post("/", s.handleCreateGroup())
+				//r.With().Put("/{id}", s.handleUpdateGroup())
+				r.Put("/{id}", s.handleUpdateGroup())
+				r.Delete("/{id}", s.handleDeleteGroup())
+			})
+			r.Route("/task", func(r chi.Router) {
+				r.Post("/", s.handleCreateTask())
+				r.Get("/{id}", s.handleTask())
+				r.Put("/{id}", s.handleUpdateTask())
+				r.Delete("/{id}", s.handleDeleteTask())
+			})
 		})
 	})
 }
@@ -92,7 +101,7 @@ func (s *server) initRouter() {
 func (s *server) handleSignUp() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		err, code := handlers.SignUp(s.store, w, r)
+		code, err := handlers.SignUp(s.store, w, r)
 		s.respond(w, r, code, nil, err)
 	}
 }
@@ -150,7 +159,13 @@ func (s *server) handleUpdateTask() http.HandlerFunc {
 			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
 		}
-		err := s.store.Task().Update(t)
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		t.Id = id
+		err = s.store.Task().Update(t)
 		if err != nil {
 			s.respond(w, r, http.StatusInternalServerError, nil, err)
 			return
@@ -167,6 +182,75 @@ func (s *server) handleDeleteTask() http.HandlerFunc {
 			return
 		}
 		if err = s.store.Task().Delete(id); err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
+	}
+}
+func (s *server) handleCreateTask() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		group_id := -1
+		if err := json.NewDecoder(r.Body).Decode(&group_id); err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		err := s.store.Task().Create(group_id)
+		if err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
+	}
+}
+func (s *server) handleCreateGroup() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		tg := &models.TG{}
+		if err := json.NewDecoder(r.Body).Decode(&tg); err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		err := s.store.TaskGroup().Create(tg.WorkspaceId, tg.Name, tg.Color)
+		if err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
+	}
+}
+func (s *server) handleUpdateGroup() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		tg := &models.TG{}
+		if err := json.NewDecoder(r.Body).Decode(&tg); err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		tg.Id = id
+		err = s.store.TaskGroup().Update(tg)
+		if err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
+	}
+}
+func (s *server) handleDeleteGroup() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		if err = s.store.TaskGroup().Delete(id); err != nil {
 			s.respond(w, r, http.StatusInternalServerError, nil, err)
 			return
 		}

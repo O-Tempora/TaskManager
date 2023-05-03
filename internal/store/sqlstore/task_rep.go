@@ -81,14 +81,39 @@ func (r *TaskRep) Update(task *models.Task) error {
 		where id = $6`,
 		task.Description, task.StartdAt, task.FinishAt, task.GroupId, statusId, task.Id,
 	)
+	if err != nil {
+		return err
+	}
+	if _, err = res.RowsAffected(); err != nil {
+		return err
+	}
+	return nil
+}
 
+func (r *TaskRep) Create(group_id int) error {
+	t := &models.Task{
+		GroupId:   group_id,
+		CreatedAt: time.Now(),
+		StartdAt:  time.Now(),
+		FinishAt:  time.Now(),
+		Status:    "In Progress",
+	}
+
+	st, err := r.store.Status().GetIdByName(t.Status)
 	if err != nil {
 		return err
 	}
 
+	res, err := r.store.db.Exec(`insert into tasks
+		(description, created_at, start_at, finish_at, group_id, status_id)
+		values ($1, $2, $3, $4, $5, $6)`,
+		t.Description, t.CreatedAt, t.StartdAt, t.FinishAt, t.GroupId, st,
+	)
+	if err != nil {
+		return err
+	}
 	if _, err = res.RowsAffected(); err != nil {
 		return err
 	}
-
 	return nil
 }
