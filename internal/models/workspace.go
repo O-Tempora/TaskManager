@@ -21,3 +21,8 @@ type HomePage struct {
 	Ws       []WorkspaceJoined `json:"workspaces"`
 	Settings string            `json:"settings"`
 }
+
+type WorkspaceFull struct {
+	Id     int         `json:"id"`
+	Groups []FullGroup `json:"groups"`
+}

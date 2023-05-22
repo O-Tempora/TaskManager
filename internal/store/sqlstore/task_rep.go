@@ -90,30 +90,35 @@ func (r *TaskRep) Update(task *models.Task) error {
 	return nil
 }
 
-func (r *TaskRep) Create(group_id int) error {
+func (r *TaskRep) Create(group_id int) (*models.TaskOverview, error) {
 	t := &models.Task{
-		GroupId:   group_id,
-		CreatedAt: time.Now(),
-		StartdAt:  time.Now(),
-		FinishAt:  time.Now(),
-		Status:    "In Progress",
+		GroupId:     group_id,
+		CreatedAt:   time.Now(),
+		StartdAt:    time.Now(),
+		FinishAt:    time.Now(),
+		Description: "",
+		Status:      "In Progress",
+	}
+	to := &models.TaskOverview{
+		Executors:   make([]models.PersonInTask, 0),
+		Description: t.Description,
+		CreatedAt:   t.CreatedAt.Format("2006-01-02"),
+		Status:      t.Status,
 	}
 
 	st, err := r.store.Status().GetIdByName(t.Status)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	res, err := r.store.db.Exec(`insert into tasks
+	if err := r.store.db.QueryRow(`insert into tasks
 		(description, created_at, start_at, finish_at, group_id, status_id)
-		values ($1, $2, $3, $4, $5, $6)`,
+		values ($1, $2, $3, $4, $5, $6)
+		returning id`,
 		t.Description, t.CreatedAt, t.StartdAt, t.FinishAt, t.GroupId, st,
-	)
-	if err != nil {
-		return err
+	).Scan(&to.Id); err != nil {
+		return nil, err
 	}
-	if _, err = res.RowsAffected(); err != nil {
-		return err
-	}
-	return nil
+
+	return to, nil
 }

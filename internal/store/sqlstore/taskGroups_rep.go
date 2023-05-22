@@ -46,26 +46,29 @@ func (r *TaskGroupRep) FindByNameAndWs(ws_id int, name string) (bool, error) {
 	return false, nil
 }
 
-func (r *TaskGroupRep) Create(ws_id int, name, color string) error {
+func (r *TaskGroupRep) Create(ws_id int, name, color string) (*models.TG, error) {
 	exists, err := r.store.TaskGroup().FindByNameAndWs(ws_id, name)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if exists {
-		return errors.New("group with this name already exists")
+		return nil, errors.New("group with this name already exists")
 	}
-	res, err := r.store.db.Exec(`insert into task_groups
+
+	tg := &models.TG{}
+	if err = r.store.db.QueryRow(`insert into task_groups
 		(name, color, workspace_id)
-		values ($1, $2, $3)`,
+		values ($1, $2, $3)
+		returning id, name, color, workspace_id`,
 		name, color, ws_id,
-	)
+	).Scan(&tg.Id, &tg.Name, &tg.Color, &tg.WorkspaceId); err != nil {
+		return nil, err
+	}
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if _, err = res.RowsAffected(); err != nil {
-		return err
-	}
-	return nil
+
+	return tg, nil
 }
 
 func (r *TaskGroupRep) Delete(id int) error {

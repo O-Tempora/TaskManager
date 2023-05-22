@@ -48,11 +48,12 @@ func SignUp(store store.Store, w http.ResponseWriter, r *http.Request) (int, err
 		return http.StatusBadRequest, err
 	}
 	p := &models.Person{
-		Email:    req.Email,
-		Password: req.Password,
-		Name:     req.Name,
-		Phone:    req.Phone,
-		Settings: "",
+		Email:        req.Email,
+		Password:     req.Password,
+		Name:         req.Name,
+		Phone:        req.Phone,
+		Settings:     "",
+		IsMaintainer: false,
 	}
 
 	if err := store.Person().Create(p); err != nil {

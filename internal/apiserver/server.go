@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 	"github.com/rs/zerolog"
 )
 
@@ -74,27 +75,34 @@ func (s *server) respond(w http.ResponseWriter, r *http.Request, code int, data 
 }
 
 func (s *server) initRouter() {
+	cors := cors.AllowAll()
+	s.router.Use(cors.Handler)
 	s.router.Use(middleware.LogRequest(s.logger))
 	s.router.Post("/signup", s.handleSignUp())
 	s.router.Post("/login", s.handleLogIn())
 	s.router.Group(func(r chi.Router) {
 		r.Use(middleware.AuthorizeToken())
-		r.Get("/home", s.handleHome())
-		r.Route("/workspace-{ws}", func(r chi.Router) {
-			r.Get("/", s.handleWorkspace())
-			r.Route("/group", func(r chi.Router) {
-				r.Post("/", s.handleCreateGroup())
-				//r.With().Put("/{id}", s.handleUpdateGroup())
-				r.Put("/{id}", s.handleUpdateGroup())
-				r.Delete("/{id}", s.handleDeleteGroup())
-			})
-			r.Route("/task", func(r chi.Router) {
-				r.Post("/", s.handleCreateTask())
-				r.Get("/{id}", s.handleTask())
-				r.Put("/{id}", s.handleUpdateTask())
-				r.Delete("/{id}", s.handleDeleteTask())
-			})
+		r.Route("/home", func(r chi.Router) {
+			r.Get("/", s.handleHome())
+			r.Post("/", s.handleCreateWS())
+			// r.Post("/")
+			// r.Delete("/{id}")
 		})
+	})
+	s.router.Route("/workspace-{ws}", func(r chi.Router) {
+		r.Get("/", s.handleWorkspace())
+	})
+	s.router.Route("/task", func(r chi.Router) {
+		r.Post("/", s.handleCreateTask())
+		r.Get("/{id}", s.handleTask())
+		r.Put("/{id}", s.handleUpdateTask())
+		r.Delete("/{id}", s.handleDeleteTask())
+	})
+	s.router.Route("/group", func(r chi.Router) {
+		r.Post("/", s.handleCreateGroup())
+		//r.With().Put("/{id}", s.handleUpdateGroup())
+		r.Put("/{id}", s.handleUpdateGroup())
+		r.Delete("/{id}", s.handleDeleteGroup())
 	})
 }
 
@@ -109,6 +117,15 @@ func (s *server) handleLogIn() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		code, token, err := handlers.LogIn(s.store, w, r)
+		if err != nil {
+			s.respond(w, r, code, nil, err)
+			return
+		}
+		cookie := http.Cookie{
+			Name:  "usr",
+			Value: token,
+		}
+		http.SetCookie(w, &cookie)
 		s.respond(w, r, code, map[string]string{
 			"accessToken": token,
 		}, err)
@@ -132,7 +149,11 @@ func (s *server) handleWorkspace() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		ws, code, err := handlers.GetFullWorkspace(s.store, chi.URLParam(r, "ws"))
-		s.respond(w, r, code, ws, err)
+		if err != nil {
+			s.respond(w, r, code, nil, err)
+			return
+		}
+		s.respond(w, r, code, ws, nil)
 	}
 }
 func (s *server) handleTask() http.HandlerFunc {
@@ -196,12 +217,12 @@ func (s *server) handleCreateTask() http.HandlerFunc {
 			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
 		}
-		err := s.store.Task().Create(group_id)
+		to, err := s.store.Task().Create(group_id)
 		if err != nil {
 			s.respond(w, r, http.StatusInternalServerError, nil, err)
 			return
 		}
-		s.respond(w, r, http.StatusOK, nil, nil)
+		s.respond(w, r, http.StatusOK, to, nil)
 	}
 }
 func (s *server) handleCreateGroup() http.HandlerFunc {
@@ -212,12 +233,12 @@ func (s *server) handleCreateGroup() http.HandlerFunc {
 			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
 		}
-		err := s.store.TaskGroup().Create(tg.WorkspaceId, tg.Name, tg.Color)
+		tg, err := s.store.TaskGroup().Create(tg.WorkspaceId, tg.Name, tg.Color)
 		if err != nil {
 			s.respond(w, r, http.StatusInternalServerError, nil, err)
 			return
 		}
-		s.respond(w, r, http.StatusOK, nil, nil)
+		s.respond(w, r, http.StatusOK, tg, nil)
 	}
 }
 func (s *server) handleUpdateGroup() http.HandlerFunc {
@@ -255,5 +276,34 @@ func (s *server) handleDeleteGroup() http.HandlerFunc {
 			return
 		}
 		s.respond(w, r, http.StatusOK, nil, nil)
+	}
+}
+
+func (s *server) handleCreateWS() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		type pl struct {
+			Name        string `json:"name"`
+			Description string `json:"description"`
+		}
+		payload := &pl{}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			fmt.Println("Error - ", err)
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		tp, err := middleware.ParseCredentials(r.Context())
+		if err != nil {
+			s.respond(w, r, http.StatusUnauthorized, nil, err)
+			return
+		}
+
+		ws, err := s.store.Workspace().Create(tp.Id, payload.Name, payload.Description)
+		if err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+
+		s.respond(w, r, http.StatusOK, *ws, nil)
 	}
 }

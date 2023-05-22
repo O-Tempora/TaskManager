@@ -13,7 +13,7 @@ func (r *PersonRep) Create(p *models.Person) error {
 		return err
 	}
 	return r.store.db.QueryRow(
-		"INSERT INTO persons (name, password, email, settings, phone, ismaintainer) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+		"INSERT INTO persons (name, password, email, settings, phone, ismaintainer) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
 		p.Name, p.Password, p.Email, p.Settings, p.Phone, p.IsMaintainer,
 	).Scan(&p.Id)
 }
@@ -133,4 +133,27 @@ func (r *PersonRep) Dismiss(name string, task int) error {
 		return err
 	}
 	return nil
+}
+
+func (r *PersonRep) IsAdmin(name string, ws_id int) (bool, error) {
+	id, err := r.store.Person().GetIdByName(name)
+	if err != nil {
+		return false, err
+	}
+	role_id := -1
+	if err = r.store.db.QueryRow(`select pw.role_id from person_workspace pw
+		where pw.person_id = $1 and pw.workspace_id = $2`,
+		id, ws_id,
+	).Scan(&role_id); err != nil {
+		return false, err
+	}
+
+	role, err := r.store.Role().Get(role_id)
+	if err != nil {
+		return false, err
+	}
+	if role == "Admin" {
+		return true, nil
+	}
+	return false, nil
 }

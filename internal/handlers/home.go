@@ -20,7 +20,7 @@ func GetHome(store store.Store, id int) (*models.HomePage, int, error) {
 	return ws, 200, nil
 }
 
-func GetFullWorkspace(store store.Store, ws_id string) ([]models.FullGroup, int, error) {
+func GetFullWorkspace(store store.Store, ws_id string) (*models.WorkspaceFull, int, error) {
 	id, err := strconv.Atoi(ws_id)
 	if err != nil {
 		return nil, 422, err
@@ -45,5 +45,9 @@ func GetFullWorkspace(store store.Store, ws_id string) ([]models.FullGroup, int,
 		groups = append(groups, *fg)
 	}
 
-	return groups, 200, nil
+	wsf := &models.WorkspaceFull{
+		Id:     id,
+		Groups: groups,
+	}
+	return wsf, 200, nil
 }
