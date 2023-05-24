@@ -85,8 +85,6 @@ func (s *server) initRouter() {
 		r.Route("/home", func(r chi.Router) {
 			r.Get("/", s.handleHome())
 			r.Post("/", s.handleCreateWS())
-			// r.Post("/")
-			// r.Delete("/{id}")
 		})
 	})
 	s.router.Route("/workspace-{ws}", func(r chi.Router) {
@@ -100,9 +98,14 @@ func (s *server) initRouter() {
 	})
 	s.router.Route("/group", func(r chi.Router) {
 		r.Post("/", s.handleCreateGroup())
-		//r.With().Put("/{id}", s.handleUpdateGroup())
 		r.Put("/{id}", s.handleUpdateGroup())
 		r.Delete("/{id}", s.handleDeleteGroup())
+	})
+	s.router.Route("/person", func(r chi.Router) {
+		r.With(middleware.AuthorizeToken()).Get("/isAdmin-{ws}", s.handleIsAdmin())
+	})
+	s.router.Route("/status", func(r chi.Router) {
+		r.Get("/", s.handleStatuses())
 	})
 }
 
@@ -131,7 +134,6 @@ func (s *server) handleLogIn() http.HandlerFunc {
 		}, err)
 	}
 }
-
 func (s *server) handleHome() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -144,7 +146,6 @@ func (s *server) handleHome() http.HandlerFunc {
 		s.respond(w, r, code, ws, err)
 	}
 }
-
 func (s *server) handleWorkspace() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -278,7 +279,6 @@ func (s *server) handleDeleteGroup() http.HandlerFunc {
 		s.respond(w, r, http.StatusOK, nil, nil)
 	}
 }
-
 func (s *server) handleCreateWS() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -305,5 +305,38 @@ func (s *server) handleCreateWS() http.HandlerFunc {
 		}
 
 		s.respond(w, r, http.StatusOK, *ws, nil)
+	}
+}
+func (s *server) handleIsAdmin() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		id, err := strconv.Atoi(chi.URLParam(r, "ws"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+
+		tp, err := middleware.ParseCredentials(r.Context())
+		if err != nil {
+			s.respond(w, r, http.StatusUnauthorized, nil, err)
+			return
+		}
+		isAdmin, err := s.store.Person().IsAdmin(tp.Login, id)
+		if err != nil {
+			s.respond(w, r, http.StatusUnauthorized, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, isAdmin, nil)
+	}
+}
+func (s *server) handleStatuses() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		st, err := s.store.Status().GetAll()
+		if err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, st, nil)
 	}
 }
