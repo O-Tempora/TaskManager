@@ -92,7 +92,7 @@ func (s *server) initRouter() {
 	})
 	s.router.Route("/task", func(r chi.Router) {
 		r.Post("/", s.handleCreateTask())
-		r.Get("/{id}", s.handleTask())
+		r.Get("/{id}-{ws}", s.handleTask())
 		r.Put("/{id}", s.handleUpdateTask())
 		r.Delete("/{id}", s.handleDeleteTask())
 	})
@@ -103,6 +103,10 @@ func (s *server) initRouter() {
 	})
 	s.router.Route("/person", func(r chi.Router) {
 		r.With(middleware.AuthorizeToken()).Get("/isAdmin-{ws}", s.handleIsAdmin())
+		r.Get("/ws-{ws}", s.handleAllPersonsInWs())
+		r.With(middleware.AuthorizeToken()).Get("/byToken", s.handleGetPerson())
+		r.Post("/{name}/assign-{task}", s.handleAssign())
+		r.Delete("/{name}/dismiss-{task}", s.handleDismiss())
 	})
 	s.router.Route("/status", func(r chi.Router) {
 		r.Get("/", s.handleStatuses())
@@ -165,12 +169,30 @@ func (s *server) handleTask() http.HandlerFunc {
 			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
 		}
+		ws, err := strconv.Atoi(chi.URLParam(r, "ws"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
 		task, err := s.store.Task().GetById(id)
 		if err != nil {
 			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
 		}
-		s.respond(w, r, http.StatusOK, task, nil)
+		persons, err := s.store.Person().GetAllAssignedToTask(id, ws)
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+
+		t := struct {
+			Task    *models.Task          `json:"task"`
+			Persons []models.PersonInTask `json:"persons"`
+		}{
+			Task:    task,
+			Persons: persons,
+		}
+		s.respond(w, r, http.StatusOK, t, nil)
 	}
 }
 func (s *server) handleUpdateTask() http.HandlerFunc {
@@ -338,5 +360,64 @@ func (s *server) handleStatuses() http.HandlerFunc {
 			return
 		}
 		s.respond(w, r, http.StatusOK, st, nil)
+	}
+}
+func (s *server) handleAllPersonsInWs() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		ws, err := strconv.Atoi(chi.URLParam(r, "ws"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		pl, err := s.store.Person().GetAllByWorkspace(ws)
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, pl, nil)
+	}
+}
+func (s *server) handleGetPerson() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		tp, err := middleware.ParseCredentials(r.Context())
+		if err != nil {
+			s.respond(w, r, http.StatusUnauthorized, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, tp, nil)
+	}
+}
+func (s *server) handleAssign() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		id, err := strconv.Atoi(chi.URLParam(r, "task"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		err = s.store.Person().Assign(chi.URLParam(r, "name"), id)
+		if err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
+	}
+}
+func (s *server) handleDismiss() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		id, err := strconv.Atoi(chi.URLParam(r, "task"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		err = s.store.Person().Dismiss(chi.URLParam(r, "name"), id)
+		if err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
 	}
 }

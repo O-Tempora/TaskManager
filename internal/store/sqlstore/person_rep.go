@@ -43,7 +43,7 @@ func (r *PersonRep) GetAllAssignedToTask(id int, ws_id int) ([]models.PersonInTa
 		where p.id in (
 			select pt.person_id from person_task pt 
 			where pt.task_id = $2
-		)`, id, ws_id)
+		)`, ws_id, id)
 
 	if err != nil {
 		return nil, err
