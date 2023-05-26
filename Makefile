@@ -11,6 +11,10 @@ run: build
 compose: build
 	docker compose up -d
 	
+.PHONY: git
+git:
+	git add .
+	git commit -m "$m"
+	git push
 
 .DEFAULT_GOAL := build
-
