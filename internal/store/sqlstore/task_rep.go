@@ -123,3 +123,98 @@ func (r *TaskRep) Create(group_id int) (*models.TaskOverview, error) {
 
 	return to, nil
 }
+
+func (r *TaskRep) GetAllByUser(id int) ([]models.PersonalTasksInWs, error) {
+	tp := struct {
+		Ws_id       int
+		Ws_name     string
+		Group_id    int
+		Group_name  string
+		Task_id     int
+		Description string
+		CreatedAt   time.Time
+		StartAt     time.Time
+		FinishAt    time.Time
+		Status      string
+	}{}
+
+	//Checks if workspace with these ID and NAME was already added to slice. Returns index
+	wsExists := func(s []models.PersonalTasksInWs, id int, name string) (bool, int) {
+		for i, v := range s {
+			if v.Id == id && v.Name == name {
+				return true, i
+			}
+		}
+		return false, -1
+	}
+	//Checks if group with these ID and NAME was already added to slice. Returns index
+	groupExists := func(s []models.GroupPersonal, id int, name string) (bool, int) {
+		for i, v := range s {
+			if v.Id == id && v.Name == name {
+				return true, i
+			}
+		}
+		return false, -1
+	}
+
+	res := make([]models.PersonalTasksInWs, 0)
+	rows, err := r.store.db.Query(`select w.id, w."name", tg.id, tg."name", q.id, q.description, q.created_at, q.start_at, q.finish_at, q."name" from workspaces w
+		join task_groups tg on tg.workspace_id = w.id 
+		join (select t.id, t.description, t.created_at, t.start_at, t.finish_at, t.group_id, s."name" from tasks t 
+			join statuses s on s.id = t.status_id) as q on q.group_id = tg.id 
+		where w.id in (
+			select pw.workspace_id from person_workspace pw where pw.person_id = $1
+		) and q.id in (
+			select pt.task_id from person_task pt where pt.person_id = $2
+		) order by w.id`, id, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		err = rows.Scan(&tp.Ws_id, &tp.Ws_name, &tp.Group_id, &tp.Group_name, &tp.Task_id, &tp.Description, &tp.CreatedAt, &tp.StartAt, &tp.FinishAt, &tp.Status)
+		if err != nil {
+			return nil, err
+		}
+
+		//Add new ws to slice if needed
+		ok, ind := wsExists(res, tp.Ws_id, tp.Ws_name)
+		if !ok {
+			pt := &models.PersonalTasksInWs{
+				Id:     tp.Ws_id,
+				Name:   tp.Ws_name,
+				Groups: make([]models.GroupPersonal, 0),
+			}
+			res = append(res, *pt)
+			ind = len(res) - 1
+		}
+
+		ok, grInd := groupExists(res[ind].Groups, tp.Group_id, tp.Group_name)
+		if !ok {
+			gr := &models.GroupPersonal{
+				Id:    tp.Group_id,
+				Name:  tp.Group_name,
+				Tasks: make([]models.TaskPers, 0),
+			}
+			res[ind].Groups = append(res[ind].Groups, *gr)
+			grInd = len(res[ind].Groups) - 1
+		}
+
+		res[ind].Groups[grInd].Tasks = append(res[ind].Groups[grInd].Tasks, models.TaskPers{
+			Id:          tp.Task_id,
+			Description: tp.Description,
+			CreatedAt:   tp.CreatedAt,
+			StartAt:     tp.StartAt,
+			FinishAt:    tp.FinishAt,
+			Status:      tp.Status,
+		})
+
+	}
+	if rows.Err() != nil {
+		return nil, err
+	}
+
+	return res, nil
+}

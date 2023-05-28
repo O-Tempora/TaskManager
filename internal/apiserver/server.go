@@ -79,6 +79,7 @@ func (s *server) initRouter() {
 	s.router.Use(cors.Handler)
 	s.router.Use(middleware.LogRequest(s.logger))
 
+	//s.router.Get("/test", s.TEST())
 	s.router.Post("/signup", s.handleSignUp())
 	s.router.Post("/login", s.handleLogIn())
 	s.router.Group(func(r chi.Router) {
@@ -98,6 +99,7 @@ func (s *server) initRouter() {
 		r.Get("/{id}-{ws}", s.handleTask())
 		r.Put("/{id}", s.handleUpdateTask())
 		r.Delete("/{id}", s.handleDeleteTask())
+		r.With(middleware.AuthorizeToken()).Get("/", s.handleGetPersonalTasks())
 	})
 	s.router.Route("/group", func(r chi.Router) {
 		r.Post("/", s.handleCreateGroup())
@@ -116,6 +118,13 @@ func (s *server) initRouter() {
 	})
 }
 
+//	func (s *server) TEST() http.HandlerFunc {
+//		return func(w http.ResponseWriter, r *http.Request) {
+//			w.Header().Set("Content-Type", "application/json")
+//			res, err := s.store.Task().GetAllByUser(1)
+//			s.respond(w, r, 322, res, err)
+//		}
+//	}
 func (s *server) handleSignUp() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -457,5 +466,21 @@ func (s *server) handleDeleteWS() http.HandlerFunc {
 			return
 		}
 		s.respond(w, r, http.StatusOK, nil, nil)
+	}
+}
+func (s *server) handleGetPersonalTasks() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		tp, err := middleware.ParseCredentials(r.Context())
+		if err != nil {
+			s.respond(w, r, http.StatusUnauthorized, nil, err)
+			return
+		}
+		res, err := s.store.Task().GetAllByUser(tp.Id)
+		if err != nil {
+			s.respond(w, r, http.StatusNotFound, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, res, nil)
 	}
 }

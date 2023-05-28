@@ -14,9 +14,14 @@ type TG struct {
 }
 
 type FullGroup struct {
-	//Group TaskGroup      `json:"group"`
 	Id    int            `json:"id"`
 	Name  string         `json:"name"`
 	Color string         `json:"color"`
 	Tasks []TaskOverview `json:"tasks"`
+}
+
+type GroupPersonal struct {
+	Id    int        `json:"group_id"`
+	Name  string     `json:"group_name"`
+	Tasks []TaskPers `json:"tasks"`
 }

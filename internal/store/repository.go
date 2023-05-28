@@ -41,6 +41,7 @@ type TaskRepository interface {
 	Delete(id int) error
 	Update(task *models.Task) error
 	Create(group_id int) (*models.TaskOverview, error)
+	GetAllByUser(id int) ([]models.PersonalTasksInWs, error)
 }
 
 type RoleRepository interface {

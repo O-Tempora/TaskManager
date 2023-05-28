@@ -30,3 +30,8 @@ type WorkspaceFull struct {
 	WS     Workspace   `json:"info"`
 	Groups []FullGroup `json:"groups"`
 }
+
+type WorkspaceSimple struct {
+	Id   int    `json:"id"`
+	Name string `json:"name"`
+}
