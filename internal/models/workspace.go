@@ -3,18 +3,22 @@ package models
 import "time"
 
 type Workspace struct {
-	Id          int       `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	CreatedAt   time.Time `json:"createdAt"`
+	Id          int        `json:"id"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	IsActive    bool       `json:"isActive"`
+	ClosedAt    *time.Time `json:"closed_at"`
 }
 
 type WorkspaceJoined struct {
-	Id          int       `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	CreatedAt   time.Time `json:"createdAt"`
-	Role        string    `json:"role"`
+	Id          int        `json:"id"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	IsActive    bool       `json:"isActive"`
+	ClosedAt    *time.Time `json:"closed_at"`
+	Role        string     `json:"role"`
 }
 
 type HomePage struct {
@@ -23,6 +27,6 @@ type HomePage struct {
 }
 
 type WorkspaceFull struct {
-	Id     int         `json:"id"`
+	WS     Workspace   `json:"info"`
 	Groups []FullGroup `json:"groups"`
 }

@@ -16,7 +16,7 @@ func (r *WorkspaceRep) GetByUser(id int) (*models.HomePage, error) {
 	}
 	w := &models.WorkspaceJoined{}
 
-	rows, err := r.store.db.Query(`select pw.workspace_id, w.name, w.description, w.created_at, ur.name, p.settings
+	rows, err := r.store.db.Query(`select pw.workspace_id, w.name, w.description, w.created_at, w.isactive, w.closed_at, ur.name, p.settings
 		from person_workspace as pw 
 		join persons as p on p.id = pw.person_id 
 		join user_role as ur on ur.id = pw.role_id 
@@ -29,7 +29,7 @@ func (r *WorkspaceRep) GetByUser(id int) (*models.HomePage, error) {
 
 	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&w.Id, &w.Name, &w.Description, &w.CreatedAt, &w.Role, &p.Settings)
+		err = rows.Scan(&w.Id, &w.Name, &w.Description, &w.CreatedAt, &w.IsActive, &w.ClosedAt, &w.Role, &p.Settings)
 		if err != nil {
 			return nil, err
 		}
@@ -42,8 +42,8 @@ func (r *WorkspaceRep) GetByUser(id int) (*models.HomePage, error) {
 func (r *WorkspaceRep) Create(user int, name, description string) (*models.WorkspaceJoined, error) {
 	var id int = -1
 	if err := r.store.db.QueryRow(`insert into workspaces
-		(name, description, created_at)
-		values ($1, $2, $3)
+		(name, description, created_at, isactive)
+		values ($1, $2, $3, $4, $5)
 		returning id`,
 		name, description, time.Now(),
 	).Scan(&id); err != nil {
@@ -61,6 +61,8 @@ func (r *WorkspaceRep) Create(user int, name, description string) (*models.Works
 		Description: description,
 		CreatedAt:   time.Now(),
 		Role:        "Admin",
+		IsActive:    true,
+		ClosedAt:    nil,
 	}
 
 	_, err = r.store.db.Exec(`insert into person_workspace
@@ -75,11 +77,11 @@ func (r *WorkspaceRep) Create(user int, name, description string) (*models.Works
 
 	return ws, nil
 }
-func (r *WorkspaceRep) Update(w *models.Workspace) error {
+func (r *WorkspaceRep) Update(w *models.Workspace, id int) error {
 	res, err := r.store.db.Exec(`update workspaces
-		set name = $1, description = $2
-		where id = $3`,
-		w.Name, w.Description,
+		set name = $1, description = $2, isactive = $3, closed_at = $4
+		where id = $5`,
+		w.Name, w.Description, w.IsActive, w.ClosedAt, id,
 	)
 	if err != nil {
 		return err
@@ -90,7 +92,7 @@ func (r *WorkspaceRep) Update(w *models.Workspace) error {
 	return nil
 }
 func (r *WorkspaceRep) Delete(id int) error {
-	res, err := r.store.db.Exec(`delete from user_roles ur where ur.id = $1`, id)
+	res, err := r.store.db.Exec(`delete from workspaces w where w.id = $1`, id)
 	if err != nil {
 		return err
 	}
@@ -121,4 +123,14 @@ func (r *WorkspaceRep) AddUserByEmail(email string, ws_id int) error {
 		return err
 	}
 	return nil
+}
+
+func (r *WorkspaceRep) GetById(id int) (*models.Workspace, error) {
+	ws := &models.Workspace{}
+
+	if err := r.store.db.QueryRow(`select * from workspaces ws where ws.id = $1`, id).
+		Scan(&ws.Id, &ws.Name, &ws.Description, &ws.CreatedAt, &ws.IsActive, &ws.ClosedAt); err != nil {
+		return nil, err
+	}
+	return ws, nil
 }

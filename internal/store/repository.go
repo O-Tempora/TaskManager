@@ -16,9 +16,10 @@ type PersonRepository interface {
 type WorkspaceRepository interface {
 	GetByUser(id int) (*models.HomePage, error)
 	Create(user int, name, description string) (*models.WorkspaceJoined, error)
-	Update(w *models.Workspace) error
+	Update(w *models.Workspace, id int) error
 	Delete(id int) error
 	AddUserByEmail(email string, ws_id int) error
+	GetById(id int) (*models.Workspace, error)
 }
 
 type TaskGroupRepository interface {

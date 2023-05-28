@@ -78,6 +78,7 @@ func (s *server) initRouter() {
 	cors := cors.AllowAll()
 	s.router.Use(cors.Handler)
 	s.router.Use(middleware.LogRequest(s.logger))
+
 	s.router.Post("/signup", s.handleSignUp())
 	s.router.Post("/login", s.handleLogIn())
 	s.router.Group(func(r chi.Router) {
@@ -87,8 +88,10 @@ func (s *server) initRouter() {
 			r.Post("/", s.handleCreateWS())
 		})
 	})
-	s.router.Route("/workspace-{ws}", func(r chi.Router) {
-		r.Get("/", s.handleWorkspace())
+	s.router.Route("/workspace", func(r chi.Router) {
+		r.Get("/{id}", s.handleWorkspace())
+		r.Put("/{id}", s.handleUpdateWS())
+		r.Delete("/{id}", s.handleDeleteWS())
 	})
 	s.router.Route("/task", func(r chi.Router) {
 		r.Post("/", s.handleCreateTask())
@@ -153,7 +156,7 @@ func (s *server) handleHome() http.HandlerFunc {
 func (s *server) handleWorkspace() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		ws, code, err := handlers.GetFullWorkspace(s.store, chi.URLParam(r, "ws"))
+		ws, code, err := handlers.GetFullWorkspace(s.store, chi.URLParam(r, "id"))
 		if err != nil {
 			s.respond(w, r, code, nil, err)
 			return
@@ -415,6 +418,41 @@ func (s *server) handleDismiss() http.HandlerFunc {
 		}
 		err = s.store.Person().Dismiss(chi.URLParam(r, "name"), id)
 		if err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
+	}
+}
+func (s *server) handleUpdateWS() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		var ws *models.Workspace
+		if err := json.NewDecoder(r.Body).Decode(&ws); err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		if err := s.store.Workspace().Update(ws, id); err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
+	}
+}
+func (s *server) handleDeleteWS() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		if err = s.store.Workspace().Delete(id); err != nil {
 			s.respond(w, r, http.StatusInternalServerError, nil, err)
 			return
 		}

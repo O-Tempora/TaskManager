@@ -19,7 +19,8 @@ func (r *TaskRep) GetAllByGroup(id int) ([]models.TaskOverview, error) {
 		from tasks t 
 		join statuses s on s.id = t.status_id 
 		join task_groups tg on tg.id = t.group_id 
-		where t.group_id = $1`, id)
+		where t.group_id = $1
+		order by t.id desc`, id)
 
 	if err != nil {
 		return nil, err
