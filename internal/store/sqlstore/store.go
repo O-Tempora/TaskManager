@@ -13,6 +13,7 @@ type Store struct {
 	statusRep    *StatusRep
 	taskRep      *TaskRep
 	roleRep      *RoleRep
+	commentRep   *CommentRep
 }
 
 func New(db *sql.DB) *Store {
@@ -85,4 +86,15 @@ func (s *Store) Role() store.RoleRepository {
 		store: s,
 	}
 	return s.roleRep
+}
+
+func (s *Store) Comment() store.CommentRepository {
+	if s.commentRep != nil {
+		return s.commentRep
+	}
+
+	s.commentRep = &CommentRep{
+		store: s,
+	}
+	return s.commentRep
 }

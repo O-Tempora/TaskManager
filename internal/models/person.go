@@ -18,6 +18,14 @@ type Person struct {
 	IsMaintainer bool   `json:"isMaintainer"`
 }
 
+type PersonShow struct {
+	Id           int    `json:"id"`
+	Name         string `json:"name"`
+	Email        string `json:"email"`
+	Phone        string `json:"phones"`
+	IsMaintainer bool   `json:"isMaintainer"`
+}
+
 type PersonInTask struct {
 	Id   int    `json:"id"`
 	Name string `json:"name"`

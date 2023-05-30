@@ -7,4 +7,5 @@ type Store interface {
 	Status() StatusRepository
 	Task() TaskRepository
 	Role() RoleRepository
+	Comment() CommentRepository
 }

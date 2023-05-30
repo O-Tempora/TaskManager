@@ -8,9 +8,13 @@ type PersonRepository interface {
 	GetIdByName(name string) (int, error)
 	GetAllAssignedToTask(id int, ws_id int) ([]models.PersonInTask, error)
 	GetAllByWorkspace(id int) ([]models.PersonInTask, error)
+	GetNameById(id int) (string, error)
+	GetAll() ([]models.PersonShow, error)
 	Assign(user string, task int) error
 	Dismiss(user string, task int) error
 	IsAdmin(user string, ws_id int) (bool, error)
+	Delete(id int) error
+	Update(id int, p models.Person) error
 }
 
 type WorkspaceRepository interface {
@@ -47,4 +51,10 @@ type TaskRepository interface {
 type RoleRepository interface {
 	GetIdByName(name string) (int, error)
 	Get(id int) (string, error)
+}
+
+type CommentRepository interface {
+	GetByTask(id int) ([]models.CommentShow, error)
+	Create(c models.Comment) (*models.CommentShow, error)
+	Delete(id int) error
 }

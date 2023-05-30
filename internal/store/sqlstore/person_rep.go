@@ -2,6 +2,7 @@ package sqlstore
 
 import (
 	"dip/internal/models"
+	"errors"
 )
 
 type PersonRep struct {
@@ -156,4 +157,64 @@ func (r *PersonRep) IsAdmin(name string, ws_id int) (bool, error) {
 		return true, nil
 	}
 	return false, nil
+}
+
+func (r *PersonRep) Delete(id int) error {
+	rows, err := r.store.db.Exec(`delete from persons where id = $1 and ismaintainer = false`, id)
+	if err != nil {
+		return err
+	}
+	ra, err := rows.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if ra == 0 {
+		return errors.New("no rows affected")
+	}
+	return nil
+}
+
+func (r *PersonRep) Update(id int, p models.Person) error {
+	rows, err := r.store.db.Exec(`update persons 
+		set name = $1, email = $2, settings = $3, phone = $4, password = $5
+		where id = $6`,
+		p.Name, p.Email, p.Settings, p.Phone, p.Password, id,
+	)
+	if err != nil {
+		return err
+	}
+	ra, err := rows.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if ra == 0 {
+		return errors.New("no rows affected")
+	}
+	return nil
+}
+
+func (r *PersonRep) GetAll() ([]models.PersonShow, error) {
+	res := make([]models.PersonShow, 0)
+	ps := models.PersonShow{}
+
+	rows, err := r.store.db.Query(`select p.id, p.name, p.email, p.phone, p.ismaintainer from persons p`)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		err = rows.Scan(&ps.Id, &ps.Name, &ps.Email, &ps.Phone, &ps.IsMaintainer)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, ps)
+	}
+	return res, nil
+}
+
+func (r *PersonRep) GetNameById(id int) (string, error) {
+	var name string
+	if err := r.store.db.QueryRow(`select p.name from persons p where p.id = &1`, id).Scan(&name); err != nil {
+		return "", err
+	}
+	return name, nil
 }

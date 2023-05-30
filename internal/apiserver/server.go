@@ -99,7 +99,8 @@ func (s *server) initRouter() {
 		r.Get("/{id}-{ws}", s.handleTask())
 		r.Put("/{id}", s.handleUpdateTask())
 		r.Delete("/{id}", s.handleDeleteTask())
-		r.With(middleware.AuthorizeToken()).Get("/", s.handleGetPersonalTasks())
+		r.With(middleware.AuthorizeToken()).
+			Get("/", s.handleGetPersonalTasks())
 	})
 	s.router.Route("/group", func(r chi.Router) {
 		r.Post("/", s.handleCreateGroup())
@@ -107,11 +108,16 @@ func (s *server) initRouter() {
 		r.Delete("/{id}", s.handleDeleteGroup())
 	})
 	s.router.Route("/person", func(r chi.Router) {
-		r.With(middleware.AuthorizeToken()).Get("/isAdmin-{ws}", s.handleIsAdmin())
 		r.Get("/ws-{ws}", s.handleAllPersonsInWs())
-		r.With(middleware.AuthorizeToken()).Get("/byToken", s.handleGetPerson())
+		r.With(middleware.AuthorizeToken()).
+			Get("/isAdmin-{ws}", s.handleIsAdmin())
+		r.With(middleware.AuthorizeToken()).
+			Get("/byToken", s.handleGetPerson())
 		r.Post("/{name}/assign-{task}", s.handleAssign())
+		r.Put("/{id}", s.handleUpdatePerson())
 		r.Delete("/{name}/dismiss-{task}", s.handleDismiss())
+		r.With(middleware.AuthorizeToken(), middleware.VerifyMaintainer).
+			Delete("/{id}", s.handleDeletePerson())
 	})
 	s.router.Route("/status", func(r chi.Router) {
 		r.Get("/", s.handleStatuses())
@@ -482,5 +488,40 @@ func (s *server) handleGetPersonalTasks() http.HandlerFunc {
 			return
 		}
 		s.respond(w, r, http.StatusOK, res, nil)
+	}
+}
+func (s *server) handleDeletePerson() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		if err = s.store.Person().Delete(id); err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
+	}
+}
+func (s *server) handleUpdatePerson() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		var p = models.Person{}
+		if err = json.NewDecoder(r.Body).Decode(&p); err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		if err = s.store.Person().Update(id, p); err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
 	}
 }
