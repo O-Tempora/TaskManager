@@ -107,7 +107,7 @@ func (r *WorkspaceRep) AddUserByEmail(email string, ws_id int) error {
 	if err != nil {
 		return err
 	}
-	role_id, err := r.store.roleRep.GetIdByName("User")
+	role_id, err := r.store.Role().GetIdByName("User")
 	if err != nil {
 		return err
 	}
