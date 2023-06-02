@@ -12,7 +12,7 @@ func (r *CommentRep) GetByTask(id int) ([]models.CommentShow, error) {
 	comments := make([]models.CommentShow, 0)
 	c := models.CommentShow{}
 
-	rows, err := r.store.db.Query(`select m.id, m.content, m.created_at, m.person_id from commentaries m where m.task_id = $1`, id)
+	rows, err := r.store.db.Query(`select m.id, m.content, m.created_at, m.person_id from commentaries m where m.task_id = $1 order by m.created_at asc`, id)
 	if err != nil {
 		return nil, err
 	}

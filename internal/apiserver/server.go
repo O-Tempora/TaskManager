@@ -101,6 +101,12 @@ func (s *server) initRouter() {
 		r.Delete("/{id}", s.handleDeleteTask())
 		r.With(middleware.AuthorizeToken()).
 			Get("/", s.handleGetPersonalTasks())
+
+		r.Route("/{task}/comment", func(r chi.Router) {
+			r.Get("/", s.handleGetComments())
+			r.Post("/", s.handleCreateComment())
+			r.Delete("/{id}", s.handleDeleteComment())
+		})
 	})
 	s.router.Route("/group", func(r chi.Router) {
 		r.Post("/", s.handleCreateGroup())
@@ -519,6 +525,55 @@ func (s *server) handleUpdatePerson() http.HandlerFunc {
 			return
 		}
 		if err = s.store.Person().Update(id, p); err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
+	}
+}
+func (s *server) handleGetComments() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		task, err := strconv.Atoi(chi.URLParam(r, "task"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		comments, err := s.store.Comment().GetByTask(task)
+		if err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, comments, nil)
+	}
+}
+func (s *server) handleCreateComment() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		cm := models.Comment{}
+		err := json.NewDecoder(r.Body).Decode(&cm)
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		c, err := s.store.Comment().Create(cm)
+		if err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, c, nil)
+	}
+}
+func (s *server) handleDeleteComment() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		err = s.store.Comment().Delete(id)
+		if err != nil {
 			s.respond(w, r, http.StatusInternalServerError, nil, err)
 			return
 		}

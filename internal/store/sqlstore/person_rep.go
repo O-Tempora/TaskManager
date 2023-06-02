@@ -213,7 +213,7 @@ func (r *PersonRep) GetAll() ([]models.PersonShow, error) {
 
 func (r *PersonRep) GetNameById(id int) (string, error) {
 	var name string
-	if err := r.store.db.QueryRow(`select p.name from persons p where p.id = &1`, id).Scan(&name); err != nil {
+	if err := r.store.db.QueryRow(`select p.name from persons p where p.id = $1`, id).Scan(&name); err != nil {
 		return "", err
 	}
 	return name, nil
