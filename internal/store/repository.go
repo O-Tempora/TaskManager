@@ -9,12 +9,13 @@ type PersonRepository interface {
 	GetAllAssignedToTask(id int, ws_id int) ([]models.PersonInTask, error)
 	GetAllByWorkspace(id int) ([]models.PersonInTask, error)
 	GetNameById(id int) (string, error)
-	GetAll() ([]models.PersonShow, error)
+	GetAll(page, take int) ([]models.PersonShow, error)
 	Assign(user string, task int) error
 	Dismiss(user string, task int) error
 	IsAdmin(user string, ws_id int) (bool, error)
 	Delete(id int) error
 	Update(id int, p models.Person) error
+	LeaveWs(id, ws_id, next_admin_id int) error
 }
 
 type WorkspaceRepository interface {
@@ -24,6 +25,7 @@ type WorkspaceRepository interface {
 	Delete(id int) error
 	AddUserByEmail(email string, ws_id int) error
 	GetById(id int) (*models.Workspace, error)
+	GetAll(page, take int) ([]models.Workspace, error)
 }
 
 type TaskGroupRepository interface {
@@ -46,6 +48,7 @@ type TaskRepository interface {
 	Update(task *models.Task) error
 	Create(group_id int) (*models.TaskOverview, error)
 	GetAllByUser(id int) ([]models.PersonalTasksInWs, error)
+	Move(id, gr_id int) error
 }
 
 type RoleRepository interface {

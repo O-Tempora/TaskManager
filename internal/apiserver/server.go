@@ -82,14 +82,9 @@ func (s *server) initRouter() {
 	//s.router.Get("/test", s.TEST())
 	s.router.Post("/signup", s.handleSignUp())
 	s.router.Post("/login", s.handleLogIn())
-	s.router.Group(func(r chi.Router) {
-		r.Use(middleware.AuthorizeToken())
-		r.Route("/home", func(r chi.Router) {
-			r.Get("/", s.handleHome())
-			r.Post("/", s.handleCreateWS())
-		})
-	})
 	s.router.Route("/workspace", func(r chi.Router) {
+		r.With(middleware.AuthorizeToken()).Get("/", s.handleHome())
+		r.With(middleware.AuthorizeToken()).Post("/", s.handleCreateWS())
 		r.Get("/{id}", s.handleWorkspace())
 		r.Put("/{id}", s.handleUpdateWS())
 		r.Delete("/{id}", s.handleDeleteWS())
@@ -98,9 +93,9 @@ func (s *server) initRouter() {
 		r.Post("/", s.handleCreateTask())
 		r.Get("/{id}-{ws}", s.handleTask())
 		r.Put("/{id}", s.handleUpdateTask())
+		r.Put("/{id}-to-{gr}", s.handleMoveTask())
 		r.Delete("/{id}", s.handleDeleteTask())
-		r.With(middleware.AuthorizeToken()).
-			Get("/", s.handleGetPersonalTasks())
+		r.With(middleware.AuthorizeToken()).Get("/", s.handleGetPersonalTasks())
 
 		r.Route("/{task}/comment", func(r chi.Router) {
 			r.Get("/", s.handleGetComments())
@@ -115,18 +110,25 @@ func (s *server) initRouter() {
 	})
 	s.router.Route("/person", func(r chi.Router) {
 		r.Get("/ws-{ws}", s.handleAllPersonsInWs())
-		r.With(middleware.AuthorizeToken()).
-			Get("/isAdmin-{ws}", s.handleIsAdmin())
-		r.With(middleware.AuthorizeToken()).
-			Get("/byToken", s.handleGetPerson())
+		r.With(middleware.AuthorizeToken()).Get("/isAdmin-{ws}", s.handleIsAdmin())
+		r.With(middleware.AuthorizeToken()).Get("/byToken", s.handleGetPerson())
 		r.Post("/{name}/assign-{task}", s.handleAssign())
 		r.Put("/{id}", s.handleUpdatePerson())
 		r.Delete("/{name}/dismiss-{task}", s.handleDismiss())
-		r.With(middleware.AuthorizeToken(), middleware.VerifyMaintainer).
-			Delete("/{id}", s.handleDeletePerson())
+		r.Delete("/{id}/{ws}", s.handleLeaveWS())
 	})
 	s.router.Route("/status", func(r chi.Router) {
 		r.Get("/", s.handleStatuses())
+	})
+	s.router.Route("/maintainer", func(r chi.Router) {
+		r.Use(middleware.AuthorizeToken(), middleware.VerifyMaintainer)
+		r.Route("/person", func(r chi.Router) {
+			r.Get("/", s.handleGetAllPersons())
+			r.Delete("/{id}", s.handleDeletePerson())
+		})
+		r.Route("/workspace", func(r chi.Router) {
+			r.Get("/", s.handleGetAllWS())
+		})
 	})
 }
 
@@ -578,5 +580,119 @@ func (s *server) handleDeleteComment() http.HandlerFunc {
 			return
 		}
 		s.respond(w, r, http.StatusOK, nil, nil)
+	}
+}
+func (s *server) handleMoveTask() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		gr, err := strconv.Atoi(chi.URLParam(r, "gr"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		if err = s.store.Task().Move(id, gr); err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
+	}
+}
+func (s *server) handleLeaveWS() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		var nextAdmin int
+		na := r.URL.Query().Get("next")
+
+		//lacks "next" flag in request -> sent by user
+		if na == "" {
+			nextAdmin = -1
+		} else {
+			//else sent by admin -> make new admin
+			next_id, err := strconv.Atoi(na)
+			if err != nil {
+				s.respond(w, r, http.StatusBadRequest, nil, err)
+				return
+			}
+			nextAdmin = next_id
+		}
+
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		ws, err := strconv.Atoi(chi.URLParam(r, "ws"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		if err = s.store.Person().LeaveWs(id, ws, nextAdmin); err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
+	}
+}
+func (s *server) handleGetAllPersons() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		params := r.URL.Query()
+		page, err := strconv.Atoi(params.Get("page"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		take, err := strconv.Atoi(params.Get("take"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		p, err := s.store.Person().GetAll(page, take)
+		if err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		payload := struct {
+			Persons []models.PersonShow
+			Total   int
+		}{
+			Persons: p,
+			Total:   len(p),
+		}
+		s.respond(w, r, http.StatusOK, payload, nil)
+	}
+}
+func (s *server) handleGetAllWS() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		params := r.URL.Query()
+		page, err := strconv.Atoi(params.Get("page"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		take, err := strconv.Atoi(params.Get("take"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		ws, err := s.store.Workspace().GetAll(page, take)
+		if err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		payload := struct {
+			WS    []models.Workspace
+			Total int
+		}{
+			WS:    ws,
+			Total: len(ws),
+		}
+		s.respond(w, r, http.StatusOK, payload, nil)
 	}
 }

@@ -157,12 +157,14 @@ func (r *TaskRep) GetAllByUser(id int) ([]models.PersonalTasksInWs, error) {
 		return false, -1
 	}
 
+	//q.status_id <> 2 mean that task is not done yet
 	res := make([]models.PersonalTasksInWs, 0)
 	rows, err := r.store.db.Query(`select w.id, w."name", tg.id, tg."name", q.id, q.description, q.created_at, q.start_at, q.finish_at, q."name" from workspaces w
 		join task_groups tg on tg.workspace_id = w.id 
-		join (select t.id, t.description, t.created_at, t.start_at, t.finish_at, t.group_id, s."name" from tasks t 
+		join (select t.id, t.description, t.created_at, t.start_at, t.finish_at, t.group_id, t.status_id, s."name" from tasks t 
 			join statuses s on s.id = t.status_id) as q on q.group_id = tg.id 
-		where w.id in (
+		where (q.status_id <> 2
+		) and w.id in (
 			select pw.workspace_id from person_workspace pw where pw.person_id = $1
 		) and q.id in (
 			select pt.task_id from person_task pt where pt.person_id = $2
@@ -217,4 +219,13 @@ func (r *TaskRep) GetAllByUser(id int) ([]models.PersonalTasksInWs, error) {
 	}
 
 	return res, nil
+}
+
+func (r *TaskRep) Move(id, gr_id int) error {
+	res, err := r.store.db.Exec(`update tasks set group_id = $1 where id = $2`, gr_id, id)
+	if err != nil {
+		return err
+	}
+	_, err = res.RowsAffected()
+	return err
 }

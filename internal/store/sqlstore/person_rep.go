@@ -193,11 +193,11 @@ func (r *PersonRep) Update(id int, p models.Person) error {
 	return nil
 }
 
-func (r *PersonRep) GetAll() ([]models.PersonShow, error) {
+func (r *PersonRep) GetAll(page, take int) ([]models.PersonShow, error) {
 	res := make([]models.PersonShow, 0)
 	ps := models.PersonShow{}
 
-	rows, err := r.store.db.Query(`select p.id, p.name, p.email, p.phone, p.ismaintainer from persons p`)
+	rows, err := r.store.db.Query(`select p.id, p.name, p.email, p.phone, p.ismaintainer from persons p limit $1 offset $2`, take, (page-1)*take)
 	if err != nil {
 		return nil, err
 	}
@@ -217,4 +217,31 @@ func (r *PersonRep) GetNameById(id int) (string, error) {
 		return "", err
 	}
 	return name, nil
+}
+
+func (r *PersonRep) LeaveWs(id, ws_id, next_admin_id int) error {
+	res, err := r.store.db.Exec(`delete from person_workspace where person_id = $1 and workspace_id = $2`, id, ws_id)
+	if err != nil {
+		return err
+	}
+	_, err = res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	//no next admin provided
+	if next_admin_id == -1 {
+		return nil
+	}
+
+	roleId, err := r.store.Role().GetIdByName("Admin")
+	if err != nil {
+		return err
+	}
+	res, err = r.store.db.Exec(`update person_workspace set role_id = $1 where person_id = $2 and workspace_id = $3`, roleId, next_admin_id, ws_id)
+	if err != nil {
+		return err
+	}
+	_, err = res.RowsAffected()
+	return err
 }

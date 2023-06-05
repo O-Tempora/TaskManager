@@ -43,9 +43,9 @@ func (r *WorkspaceRep) Create(user int, name, description string) (*models.Works
 	var id int = -1
 	if err := r.store.db.QueryRow(`insert into workspaces
 		(name, description, created_at, isactive)
-		values ($1, $2, $3, $4, $5)
+		values ($1, $2, $3, $4)
 		returning id`,
-		name, description, time.Now(),
+		name, description, time.Now(), true,
 	).Scan(&id); err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (r *WorkspaceRep) Update(w *models.Workspace, id int) error {
 	return nil
 }
 func (r *WorkspaceRep) Delete(id int) error {
-	res, err := r.store.db.Exec(`delete from workspaces w where w.id = $1`, id)
+	res, err := r.store.db.Exec(`delete from workspaces where id = $1`, id)
 	if err != nil {
 		return err
 	}
@@ -127,10 +127,28 @@ func (r *WorkspaceRep) AddUserByEmail(email string, ws_id int) error {
 
 func (r *WorkspaceRep) GetById(id int) (*models.Workspace, error) {
 	ws := &models.Workspace{}
-
 	if err := r.store.db.QueryRow(`select * from workspaces ws where ws.id = $1`, id).
 		Scan(&ws.Id, &ws.Name, &ws.Description, &ws.CreatedAt, &ws.IsActive, &ws.ClosedAt); err != nil {
 		return nil, err
 	}
 	return ws, nil
+}
+
+func (r *WorkspaceRep) GetAll(page, take int) ([]models.Workspace, error) {
+	rows, err := r.store.db.Query(`select * from workspaces limit $1 offset $2`, take, (page-1)*take)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	res := make([]models.Workspace, 0)
+	ws := models.Workspace{}
+	for rows.Next() {
+		err = rows.Scan(&ws.Id, &ws.Name, &ws.Description, &ws.CreatedAt, &ws.IsActive, &ws.ClosedAt)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, ws)
+	}
+	return res, rows.Err()
 }
