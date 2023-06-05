@@ -55,9 +55,6 @@ func (r *InviteRep) Decline(invite_id int) error {
 }
 
 func (r *InviteRep) Accept(invite_id, ws_id, usr_id int) error {
-	if err := r.Delete(invite_id); err != nil {
-		return err
-	}
 	role_id, err := r.store.Role().GetIdByName("User")
 	if err != nil {
 		return err
@@ -71,6 +68,9 @@ func (r *InviteRep) Accept(invite_id, ws_id, usr_id int) error {
 		return err
 	}
 	_, err = res.RowsAffected()
+	if err := r.Delete(invite_id); err != nil {
+		return err
+	}
 	return err
 }
 

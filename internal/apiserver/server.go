@@ -130,6 +130,12 @@ func (s *server) initRouter() {
 			r.Get("/", s.handleGetAllWS())
 		})
 	})
+	s.router.Route("/invite", func(r chi.Router) {
+		r.With(middleware.AuthorizeToken()).Get("/", s.handleGetInvites())
+		r.With(middleware.AuthorizeToken()).Post("/", s.handleSendInvite())
+		r.With(middleware.AuthorizeToken()).Post("/{id}/{ws}", s.handleAcceptInvite())
+		r.Delete("/{id}", s.handleDeclineInvite())
+	})
 }
 
 //	func (s *server) TEST() http.HandlerFunc {
@@ -694,5 +700,84 @@ func (s *server) handleGetAllWS() http.HandlerFunc {
 			Total: len(ws),
 		}
 		s.respond(w, r, http.StatusOK, payload, nil)
+	}
+}
+func (s *server) handleGetInvites() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		tp, err := middleware.ParseCredentials(r.Context())
+		if err != nil {
+			s.respond(w, r, http.StatusUnauthorized, nil, err)
+			return
+		}
+		inv, err := s.store.Invite().GetAll(tp.Id)
+		if err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, inv, nil)
+	}
+}
+func (s *server) handleSendInvite() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		tp, err := middleware.ParseCredentials(r.Context())
+		if err != nil {
+			s.respond(w, r, http.StatusUnauthorized, nil, err)
+			return
+		}
+		payload := struct {
+			Email string `json:"email"`
+			WsId  int    `json:"ws_id"`
+		}{}
+		if err = json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		if err := s.store.Invite().Send(payload.Email, payload.WsId, tp.Id); err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
+	}
+}
+func (s *server) handleDeclineInvite() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		if err := s.store.Invite().Decline(id); err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
+	}
+}
+func (s *server) handleAcceptInvite() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		tp, err := middleware.ParseCredentials(r.Context())
+		if err != nil {
+			s.respond(w, r, http.StatusUnauthorized, nil, err)
+			return
+		}
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		ws, err := strconv.Atoi(chi.URLParam(r, "ws"))
+		if err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		if err := s.store.Invite().Accept(id, ws, tp.Id); err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
 	}
 }
