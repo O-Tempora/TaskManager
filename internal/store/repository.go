@@ -65,7 +65,7 @@ type CommentRepository interface {
 type InviteRepository interface {
 	GetAll(user_id int) ([]models.InviteShow, error)
 	Create(inv *models.Invite) error
-	Accept(invite_id, ws_id, usr_id int) error
+	Accept(invite_id, ws_id, usr_id int) (*models.WorkspaceJoined, error)
 	Decline(invite_id int) error
 	Delete(invite_id int) error
 	Send(email string, ws_id, user_id int) error

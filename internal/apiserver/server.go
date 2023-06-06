@@ -774,10 +774,11 @@ func (s *server) handleAcceptInvite() http.HandlerFunc {
 			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
 		}
-		if err := s.store.Invite().Accept(id, ws, tp.Id); err != nil {
+		newWs, err := s.store.Invite().Accept(id, ws, tp.Id)
+		if err != nil {
 			s.respond(w, r, http.StatusInternalServerError, nil, err)
 			return
 		}
-		s.respond(w, r, http.StatusOK, nil, nil)
+		s.respond(w, r, http.StatusOK, newWs, nil)
 	}
 }
