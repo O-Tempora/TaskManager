@@ -30,7 +30,8 @@ func (r *InviteRep) GetAll(user_id int) ([]models.InviteShow, error) {
 			return nil, err
 		}
 		buf.Sender = sender
-		if err := r.store.db.QueryRow(`select w.name from workspaces w where w.id = $1`, buf.WorkspaceId).Scan(&buf.Workspace); err != nil {
+		if err := r.store.db.QueryRow(`select w.name, w.created_at, w.description from workspaces w where w.id = $1`,
+			buf.WorkspaceId).Scan(&buf.Workspace, &buf.CreatedAt, &buf.Description); err != nil {
 			return nil, err
 		}
 		res = append(res, buf)
@@ -79,8 +80,7 @@ func (r *InviteRep) Create(inv *models.Invite) error {
 
 	if err := r.store.db.QueryRow(`insert into invites
 		(receiver_id, sender_id, workspace_id, sent_at)
-		values ($1, $2, $3, $4) returning id
-		on conflict do nothing`,
+		values ($1, $2, $3, $4) on conflict do nothing returning id`,
 		inv.ReceiverId, inv.SenderId, inv.WsId, inv.SentAt,
 	).Scan(&id); err != nil {
 		return err

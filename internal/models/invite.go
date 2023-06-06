@@ -17,4 +17,6 @@ type InviteShow struct {
 	SentAt      time.Time `json:"sent_at"`
 	Workspace   string    `json:"workspace"`
 	WorkspaceId int       `json:"ws_id"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
 }
