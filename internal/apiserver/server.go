@@ -1,9 +1,9 @@
 package apiserver
 
 import (
-	"dip/internal/handlers"
 	"dip/internal/middleware"
 	"dip/internal/models"
+	"dip/internal/service"
 	"dip/internal/store"
 	"encoding/json"
 	"fmt"
@@ -20,16 +20,18 @@ import (
 )
 
 type server struct {
-	router *chi.Mux
-	logger zerolog.Logger
-	store  store.Store
+	router  *chi.Mux
+	logger  zerolog.Logger
+	store   store.Store
+	service service.IService
 }
 
-func newServer(store store.Store) *server {
+func newServer(store store.Store, service service.IService) *server {
 	s := &server{
-		router: chi.NewRouter(),
-		logger: zerolog.New(os.Stdout),
-		store:  store,
+		router:  chi.NewRouter(),
+		logger:  zerolog.New(os.Stdout),
+		store:   store,
+		service: service,
 	}
 
 	s.initLogger(os.Stdout)
@@ -148,26 +150,44 @@ func (s *server) initRouter() {
 func (s *server) handleSignUp() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		code, err := handlers.SignUp(s.store, w, r)
-		s.respond(w, r, code, nil, err)
+		type request struct {
+			Name     string `json:"name"`
+			Email    string `json:"email"`
+			Phone    string `json:"phone"`
+			Password string `json:"password"`
+		}
+		req := &request{}
+		if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
+		if err := s.service.Logic().SignUp(req.Name, req.Email, req.Phone, req.Password); err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, nil, nil)
 	}
 }
 func (s *server) handleLogIn() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		code, token, err := handlers.LogIn(s.store, w, r)
-		if err != nil {
-			s.respond(w, r, code, nil, err)
+		type request struct {
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
+		req := &request{}
+		if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
 		}
-		cookie := http.Cookie{
-			Name:  "usr",
-			Value: token,
+		token, err := s.service.Logic().LogIn(req.Email, req.Password)
+		if err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
 		}
-		http.SetCookie(w, &cookie)
-		s.respond(w, r, code, map[string]string{
+		s.respond(w, r, http.StatusOK, map[string]string{
 			"accessToken": token,
-		}, err)
+		}, nil)
 	}
 }
 func (s *server) handleHome() http.HandlerFunc {
@@ -178,19 +198,28 @@ func (s *server) handleHome() http.HandlerFunc {
 			s.respond(w, r, http.StatusUnauthorized, nil, err)
 			return
 		}
-		ws, code, err := handlers.GetHome(s.store, tp.Id)
-		s.respond(w, r, code, ws, err)
+		ws, err := s.service.Logic().GetWsByUser(tp.Id)
+		if err != nil {
+			s.respond(w, r, http.StatusUnauthorized, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusOK, ws, nil)
 	}
 }
 func (s *server) handleWorkspace() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		ws, code, err := handlers.GetFullWorkspace(s.store, chi.URLParam(r, "id"))
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
 		if err != nil {
-			s.respond(w, r, code, nil, err)
+			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
 		}
-		s.respond(w, r, code, ws, nil)
+		ws, err := s.service.Logic().GetFullWorkspace(id)
+		if err != nil {
+			s.respond(w, r, http.StatusInternalServerError, nil, err)
+			return
+		}
+		s.respond(w, r, http.StatusBadRequest, ws, nil)
 	}
 }
 func (s *server) handleTask() http.HandlerFunc {
@@ -211,7 +240,7 @@ func (s *server) handleTask() http.HandlerFunc {
 			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
 		}
-		persons, err := s.store.Person().GetAllAssignedToTask(id, ws)
+		persons, err := s.service.Logic().GetAllAssignedToTask(id, ws)
 		if err != nil {
 			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
@@ -375,7 +404,7 @@ func (s *server) handleIsAdmin() http.HandlerFunc {
 			s.respond(w, r, http.StatusUnauthorized, nil, err)
 			return
 		}
-		isAdmin, err := s.store.Person().IsAdmin(tp.Login, id)
+		isAdmin, err := s.service.Logic().IsAdmin(tp.Login, id)
 		if err != nil {
 			s.respond(w, r, http.StatusUnauthorized, nil, err)
 			return
@@ -429,7 +458,7 @@ func (s *server) handleAssign() http.HandlerFunc {
 			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
 		}
-		err = s.store.Person().Assign(chi.URLParam(r, "name"), id)
+		err = s.service.Logic().Assign(chi.URLParam(r, "name"), id)
 		if err != nil {
 			s.respond(w, r, http.StatusInternalServerError, nil, err)
 			return
@@ -445,7 +474,7 @@ func (s *server) handleDismiss() http.HandlerFunc {
 			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
 		}
-		err = s.store.Person().Dismiss(chi.URLParam(r, "name"), id)
+		err = s.service.Logic().Dismiss(chi.URLParam(r, "name"), id)
 		if err != nil {
 			s.respond(w, r, http.StatusInternalServerError, nil, err)
 			return
@@ -496,7 +525,7 @@ func (s *server) handleGetPersonalTasks() http.HandlerFunc {
 			s.respond(w, r, http.StatusUnauthorized, nil, err)
 			return
 		}
-		res, err := s.store.Task().GetAllByUser(tp.Id)
+		res, err := s.service.Logic().GetAllTasksByUser(tp.Id)
 		if err != nil {
 			s.respond(w, r, http.StatusNotFound, nil, err)
 			return
@@ -601,7 +630,7 @@ func (s *server) handleMoveTask() http.HandlerFunc {
 			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
 		}
-		if err = s.store.Task().Move(id, gr); err != nil {
+		if err = s.service.Logic().MoveTask(id, gr); err != nil {
 			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
 		}
@@ -637,7 +666,7 @@ func (s *server) handleLeaveWS() http.HandlerFunc {
 			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
 		}
-		if err = s.store.Person().LeaveWs(id, ws, nextAdmin); err != nil {
+		if err = s.service.Logic().LeaveWs(id, ws, nextAdmin); err != nil {
 			s.respond(w, r, http.StatusInternalServerError, nil, err)
 			return
 		}
@@ -734,7 +763,7 @@ func (s *server) handleSendInvite() http.HandlerFunc {
 			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
 		}
-		if err := s.store.Invite().Send(payload.Email, payload.WsId, tp.Id); err != nil {
+		if err := s.service.Logic().SendInvite(payload.Email, payload.WsId, tp.Id); err != nil {
 			s.respond(w, r, http.StatusInternalServerError, nil, err)
 			return
 		}
@@ -749,7 +778,7 @@ func (s *server) handleDeclineInvite() http.HandlerFunc {
 			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
 		}
-		if err := s.store.Invite().Decline(id); err != nil {
+		if err := s.service.Logic().DeclineInvite(id); err != nil {
 			s.respond(w, r, http.StatusInternalServerError, nil, err)
 			return
 		}
@@ -774,7 +803,7 @@ func (s *server) handleAcceptInvite() http.HandlerFunc {
 			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
 		}
-		newWs, err := s.store.Invite().Accept(id, ws, tp.Id)
+		newWs, err := s.service.Logic().AcceptInvite(id, ws, tp.Id)
 		if err != nil {
 			s.respond(w, r, http.StatusInternalServerError, nil, err)
 			return

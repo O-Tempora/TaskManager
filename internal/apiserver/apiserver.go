@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"database/sql"
+	"dip/internal/service"
 	"dip/internal/store/sqlstore"
 	"fmt"
 	"log"
@@ -20,7 +21,8 @@ func Start(config *Config) error {
 	}
 	defer db.Close()
 	store := sqlstore.New(db)
-	srv := newServer(store)
+	service := service.New(store)
+	srv := newServer(store, service)
 	srv.logger.Info().Msgf("Server started at port %s", config.Port)
 	return http.ListenAndServe(config.Port, srv)
 }

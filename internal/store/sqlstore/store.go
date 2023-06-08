@@ -110,3 +110,7 @@ func (s *Store) Invite() store.InviteRepository {
 	}
 	return s.inviteRep
 }
+
+func (s *Store) DB() *sql.DB {
+	return s.db
+}

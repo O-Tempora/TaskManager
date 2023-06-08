@@ -30,38 +30,6 @@ func (r *PersonRep) GetByEmail(email string) (*models.Person, error) {
 	return p, nil
 }
 
-func (r *PersonRep) GetAllAssignedToTask(id int, ws_id int) ([]models.PersonInTask, error) {
-	p := &models.PersonInTask{}
-	persons := make([]models.PersonInTask, 0)
-
-	//Mb add n1.name to returned values of select
-	rows, err := r.store.db.Query(`select p.id, p.name, n1.name as role from persons p 
-		join (select * from person_workspace pw 
-			join user_role ur
-			on pw.role_id = ur.id 
-			where pw.workspace_id = $1
-		) as n1 on p.id = n1.person_id 
-		where p.id in (
-			select pt.person_id from person_task pt 
-			where pt.task_id = $2
-		)`, ws_id, id)
-
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-	for rows.Next() {
-		err = rows.Scan(&p.Id, &p.Name, &p.Role)
-		if err != nil {
-			return nil, err
-		}
-		persons = append(persons, *p)
-	}
-
-	return persons, nil
-}
-
 func (r *PersonRep) GetAllByWorkspace(id int) ([]models.PersonInTask, error) {
 	p := &models.PersonInTask{}
 	persons := make([]models.PersonInTask, 0)
@@ -98,65 +66,6 @@ func (r *PersonRep) GetIdByName(name string) (int, error) {
 		return -1, err
 	}
 	return id, nil
-}
-func (r *PersonRep) Assign(name string, task int) error {
-	id, err := r.store.Person().GetIdByName(name)
-	if err != nil {
-		return err
-	}
-	res, err := r.store.db.Exec(`insert into person_task 
-		(person_id, task_id)
-		values ($1, $2)
-		on conflict do nothing`,
-		id, task,
-	)
-	if err != nil {
-		return err
-	}
-	if _, err = res.RowsAffected(); err != nil {
-		return err
-	}
-	return nil
-}
-func (r *PersonRep) Dismiss(name string, task int) error {
-	id, err := r.store.Person().GetIdByName(name)
-	if err != nil {
-		return err
-	}
-	res, err := r.store.db.Exec(`delete from person_task pt
-		where pt.person_id = $1 and pt.task_id = $2`,
-		id, task,
-	)
-	if err != nil {
-		return err
-	}
-	if _, err = res.RowsAffected(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (r *PersonRep) IsAdmin(name string, ws_id int) (bool, error) {
-	id, err := r.store.Person().GetIdByName(name)
-	if err != nil {
-		return false, err
-	}
-	role_id := -1
-	if err = r.store.db.QueryRow(`select pw.role_id from person_workspace pw
-		where pw.person_id = $1 and pw.workspace_id = $2`,
-		id, ws_id,
-	).Scan(&role_id); err != nil {
-		return false, err
-	}
-
-	role, err := r.store.Role().Get(role_id)
-	if err != nil {
-		return false, err
-	}
-	if role == "Admin" {
-		return true, nil
-	}
-	return false, nil
 }
 
 func (r *PersonRep) Delete(id int) error {
@@ -217,31 +126,4 @@ func (r *PersonRep) GetNameById(id int) (string, error) {
 		return "", err
 	}
 	return name, nil
-}
-
-func (r *PersonRep) LeaveWs(id, ws_id, next_admin_id int) error {
-	res, err := r.store.db.Exec(`delete from person_workspace where person_id = $1 and workspace_id = $2`, id, ws_id)
-	if err != nil {
-		return err
-	}
-	_, err = res.RowsAffected()
-	if err != nil {
-		return err
-	}
-
-	//no next admin provided
-	if next_admin_id == -1 {
-		return nil
-	}
-
-	roleId, err := r.store.Role().GetIdByName("Admin")
-	if err != nil {
-		return err
-	}
-	res, err = r.store.db.Exec(`update person_workspace set role_id = $1 where person_id = $2 and workspace_id = $3`, roleId, next_admin_id, ws_id)
-	if err != nil {
-		return err
-	}
-	_, err = res.RowsAffected()
-	return err
 }
