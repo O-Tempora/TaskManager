@@ -30,11 +30,11 @@ func (r *PersonRep) GetByEmail(email string) (*models.Person, error) {
 	return p, nil
 }
 
-func (r *PersonRep) GetAllByWorkspace(id int) ([]models.PersonInTask, error) {
-	p := &models.PersonInTask{}
-	persons := make([]models.PersonInTask, 0)
+func (r *PersonRep) GetAllByWorkspace(id int) ([]models.PersonWS, error) {
+	p := &models.PersonWS{}
+	persons := make([]models.PersonWS, 0)
 
-	rows, err := r.store.db.Query(`select p.id, p.name, n1.name as role from persons p 
+	rows, err := r.store.db.Query(`select p.id, p.name, n1.name as role, p.email, p.phone from persons p 
 		join (select * from person_workspace pw 
 			join user_role ur
 			on pw.role_id = ur.id 
@@ -47,7 +47,7 @@ func (r *PersonRep) GetAllByWorkspace(id int) ([]models.PersonInTask, error) {
 
 	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&p.Id, &p.Name, &p.Role)
+		err = rows.Scan(&p.Id, &p.Name, &p.Role, &p.Email, &p.Phone)
 		if err != nil {
 			return nil, err
 		}
@@ -85,9 +85,9 @@ func (r *PersonRep) Delete(id int) error {
 
 func (r *PersonRep) Update(id int, p models.Person) error {
 	rows, err := r.store.db.Exec(`update persons 
-		set name = $1, email = $2, settings = $3, phone = $4, password = $5
-		where id = $6`,
-		p.Name, p.Email, p.Settings, p.Phone, p.Password, id,
+		set name = $1, email = $2, settings = $3, phone = $4
+		where id = $5`,
+		p.Name, p.Email, p.Settings, p.Phone, id,
 	)
 	if err != nil {
 		return err

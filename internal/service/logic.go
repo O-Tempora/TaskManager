@@ -15,7 +15,6 @@ type Logic interface {
 
 	AddToWsByEmail(email string, ws_id int) error
 	GetWsByUser(id int) (*models.HomePage, error)
-	GetHome(id int) (*models.HomePage, error)
 	GetFullWorkspace(ws_id int) (*models.WorkspaceFull, error)
 
 	LogIn(email, password string) (string, error)
@@ -41,7 +40,6 @@ func (l *LogicUnit) SendInvite(email string, ws_id, user_id int) error {
 		return err
 	}
 	err = l.service.store.Invite().Create(&models.Invite{
-		Id:         p.Id,
 		SenderId:   user_id,
 		ReceiverId: p.Id,
 		WsId:       ws_id,
@@ -141,14 +139,6 @@ func (l *LogicUnit) GetWsByUser(id int) (*models.HomePage, error) {
 
 	return p, nil
 }
-func (l *LogicUnit) GetHome(id int) (*models.HomePage, error) {
-	ws, err := l.GetWsByUser(id)
-	if err != nil {
-		return nil, err
-	}
-
-	return ws, nil
-}
 func (l *LogicUnit) GetFullWorkspace(ws_id int) (*models.WorkspaceFull, error) {
 	ws, err := l.service.store.Workspace().GetById(ws_id)
 	if err != nil {
@@ -217,7 +207,6 @@ func (l *LogicUnit) GetAllAssignedToTask(id int, ws_id int) ([]models.PersonInTa
 	p := &models.PersonInTask{}
 	persons := make([]models.PersonInTask, 0)
 
-	//Mb add n1.name to returned values of select
 	rows, err := l.service.store.DB().Query(`select p.id, p.name, n1.name as role from persons p 
 		join (select * from person_workspace pw 
 			join user_role ur
@@ -297,10 +286,10 @@ func (l *LogicUnit) IsAdmin(name string, ws_id int) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if role == "Admin" {
-		return true, nil
+	if role != "Admin" {
+		return false, nil
 	}
-	return false, nil
+	return true, nil
 }
 func (l *LogicUnit) LeaveWs(id, ws_id, next_admin_id int) error {
 	res, err := l.service.store.DB().Exec(`delete from person_workspace where person_id = $1 and workspace_id = $2`, id, ws_id)
@@ -335,7 +324,7 @@ func (l *LogicUnit) GetAllTasksByGroup(id int) ([]models.TaskOverview, error) {
 	var ws_id int
 	tasks := make([]models.TaskOverview, 0)
 
-	rows, err := l.service.store.DB().Query(`select t.id, t.description, t.created_at, s.name, tg.workspace_id, t.enddate
+	rows, err := l.service.store.DB().Query(`select t.id, t.description, t.finish_at, s.name, tg.workspace_id, t.enddate
 		from tasks t 
 		join statuses s on s.id = t.status_id 
 		join task_groups tg on tg.id = t.group_id 
@@ -352,7 +341,7 @@ func (l *LogicUnit) GetAllTasksByGroup(id int) ([]models.TaskOverview, error) {
 		if err != nil {
 			return nil, err
 		}
-		t.CreatedAt = date.Format("2006-01-02")
+		t.FinishAt = date.Format("2006-01-02")
 		t.Executors, err = l.GetAllAssignedToTask(t.Id, ws_id)
 		if err != nil {
 			return nil, err
@@ -415,7 +404,8 @@ func (l *LogicUnit) GetAllTasksByUser(id int) ([]models.PersonalTasksInWs, error
 			select pw.workspace_id from person_workspace pw where pw.person_id = $1
 		) and q.id in (
 			select pt.task_id from person_task pt where pt.person_id = $2
-		) order by w.id`, id, id)
+		) and q.enddate IS NULL 
+		order by w.id`, id, id)
 
 	if err != nil {
 		return nil, err

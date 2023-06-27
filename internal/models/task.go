@@ -18,7 +18,7 @@ type Task struct {
 type TaskOverview struct {
 	Id          int            `json:"id"`
 	Description string         `json:"description"`
-	CreatedAt   string         `json:"createdAt"`
+	FinishAt    string         `json:"finishAt"`
 	Status      string         `json:"status"`
 	EndDate     *time.Time     `json:"endDate"`
 	Executors   []PersonInTask `json:"persons"`

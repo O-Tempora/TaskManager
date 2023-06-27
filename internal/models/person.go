@@ -32,12 +32,20 @@ type PersonInTask struct {
 	Role string `json:"role"`
 }
 
+type PersonWS struct {
+	Id    int    `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+	Phone string `json:"phone"`
+	Role  string `json:"role"`
+}
+
 func (p *Person) Validate() error {
 	if err := validation.ValidateStruct(p,
 		validation.Field(&p.Email, validation.Required, is.Email),
 		validation.Field(&p.Phone, validation.Required, validation.Match(
 			regexp.MustCompile(`^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$`))),
-		validation.Field(&p.Password, validation.Required, validation.Length(5, 20)),
+		validation.Field(&p.Password, validation.Length(5, 20)),
 		validation.Field(&p.Name, validation.Required),
 	); err != nil {
 		return err

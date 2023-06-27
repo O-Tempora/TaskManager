@@ -6,7 +6,7 @@ type PersonRepository interface {
 	Create(*models.Person) error
 	GetByEmail(email string) (*models.Person, error)
 	GetIdByName(name string) (int, error)
-	GetAllByWorkspace(id int) ([]models.PersonInTask, error)
+	GetAllByWorkspace(id int) ([]models.PersonWS, error)
 	GetNameById(id int) (string, error)
 	GetAll(page, take int) ([]models.PersonShow, error)
 	Delete(id int) error

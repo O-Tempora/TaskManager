@@ -62,12 +62,13 @@ func (r *TaskRep) Create(group_id int) (*models.TaskOverview, error) {
 		StartdAt:    time.Now(),
 		FinishAt:    time.Now(),
 		Description: "",
-		Status:      "In Progress",
+		Status:      "ToDo",
 	}
 	to := &models.TaskOverview{
 		Executors:   make([]models.PersonInTask, 0),
 		Description: t.Description,
-		CreatedAt:   t.CreatedAt.Format("2006-01-02"),
+		FinishAt:    t.FinishAt.Format("2006-01-02"),
+		EndDate:     nil,
 		Status:      t.Status,
 	}
 

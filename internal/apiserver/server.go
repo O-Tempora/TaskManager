@@ -561,6 +561,10 @@ func (s *server) handleUpdatePerson() http.HandlerFunc {
 			s.respond(w, r, http.StatusBadRequest, nil, err)
 			return
 		}
+		if err := p.Validate(); err != nil {
+			s.respond(w, r, http.StatusBadRequest, nil, err)
+			return
+		}
 		if err = s.store.Person().Update(id, p); err != nil {
 			s.respond(w, r, http.StatusInternalServerError, nil, err)
 			return
